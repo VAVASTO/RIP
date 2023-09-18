@@ -1,0 +1,36 @@
+{% extends 'pages/home.html' %}
+{% load static %}
+{% block title %}Список заказов{% endblock %}
+
+{% block content %}
+
+<div class="album">
+    <div class="container">
+        <div class="row">
+            <form method="GET" action="{% url 'services' %}">
+                <div class="search-bar">
+                    <input type="text" name="q" id="search-input" placeholder="Поиск" value="{{search_value}}">
+                    <button type="submit" id="search-button">Искать</button>
+                </div>
+            </form>
+        
+            {% for model in filtered_data %}    
+            <div class="col">
+                <div class="card" data-url="https://google.com">
+                    <img src="{{ model.image_url }}" alt="{{ model.type }}" class="card-img-top">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ model.type }}</h5>
+                        <p class="card-text">{{ model.description }}</p>
+                        <p class="card-text">Цена: {{ model.price }} рублей</p>
+                    </div>
+                    <div class="card-button">
+                        <a href="{% url 'view_service' model.id %}" class="btn btn-primary">Подробнее</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
