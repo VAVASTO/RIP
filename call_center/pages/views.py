@@ -1,4 +1,9 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from .models import BouquetType
+from django.db import connection
+from django.urls import reverse
+import icecream as ic
+import operator
 
 data_modeling = {
     'modeling': [
@@ -48,24 +53,42 @@ data_modeling = {
     ]
 }
 
+
 def services(request):
     query = request.GET.get('q')
 
     if query:
-        # Фильтруем данные, учитывая как поле "type", так и поле "price"
-        filtered_data = [item for item in data_modeling['modeling'] if
-                         query.lower() in item['type'].lower() or query.lower() in item['price'].lower()]
-
+        filtered_data = BouquetType.objects.filter(name__icontains=query, status='in_stock').order_by("bouquet_id")
     else:
-        filtered_data = data_modeling['modeling']
-        query = ""
+        filtered_data = BouquetType.objects.filter(status='in_stock').order_by("bouquet_id")
 
+    if not query:
+        query = ''  
+        
     return render(request, "pages/services.html", {'filtered_data': filtered_data, 'search_value': query})
 
+def delete_item(id):
+    try:
+        with connection.cursor() as cursor:
+            
+            quarry = f"UPDATE bouquet_type SET status = 'out_of_stock' WHERE bouquet_id = %s"
+            cursor.execute(quarry, [id])
+            connection.commit()
+            
+            return True
+    except Exception as e:
+        print(f"Произошла ошибка: {str(e)}")
+        return False
+    
+def update_cards_page(request, model_id):
+    if not delete_item(model_id):
+        pass
+    return redirect('/')
+    
 
 
 def view_service(request, model_id):
-    data_by_id = data_modeling.get('modeling')[model_id]
+    bouquet = BouquetType.objects.get(pk=model_id)
     return render(request, 'pages/view_service.html', {
-        'modeling': data_by_id
+        'modeling': bouquet
     })

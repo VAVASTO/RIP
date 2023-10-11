@@ -178,3 +178,22 @@
     .btn-success:hover {
         background-color: #8c6c57; /* Ещё более тёмный цвет при наведении */
     }
+
+    .close-button {
+        position: absolute;
+        top: 10px;
+        right: 10px; /* Перемещаем кнопку крестика в правый верхний угол */
+        background-color: transparent;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+
+.card {
+    position: relative;
+}
+    
+    .close-button:hover {
+        color: red; /* Цвет кнопки при наведении */
+    }

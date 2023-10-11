@@ -17,14 +17,22 @@
             {% for model in filtered_data %}    
             <div class="col">
                 <div class="card" data-url="https://google.com">
-                    <img src="{{ model.image_url }}" alt="{{ model.type }}" class="card-img-top">
+                    <form action="{% url 'update_cards_page' model.bouquet_id %}" method="post">
+                        {% csrf_token %}
+                        <!-- Add your data fields here, for example: -->
+                        <!-- <input type="hidden" name="key" value="value"> -->
+                        <button type="submit" class="close-button">✖</button>
+                    </form>
+                    
+                    
+                    <img src="{{ model.image_url }}" alt="{{ model.name }}" class="card-img-top">
                     <div class="card-body">
-                        <h5 class="card-title">{{ model.type }}</h5>
+                        <h5 class="card-title">{{ model.name }}</h5>
                         <p class="card-text">{{ model.description }}</p>
                         <p class="card-text">Цена: {{ model.price }} рублей</p>
                     </div>
                     <div class="card-button">
-                        <a href="{% url 'view_service' model.id %}" class="btn btn-primary">Подробнее</a>
+                        <a href="{% url 'view_service' model.bouquet_id %}" class="btn btn-primary">Подробнее</a>
                     </div>
                 </div>
             </div>
@@ -33,4 +41,32 @@
         
     </div>
 </div>
+
+
+<style>
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px; /* Перемещаем кнопку крестика в правый верхний угол */
+    background-color: transparent;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: black; /* Возвращаем цвет кнопки крестика в черный */
+    text-decoration: none; /* Убираем подчеркивание */
+}
+
+.card {
+    position: relative;
+}
+
+.close-button:hover {
+    color: red; /* Цвет кнопки при наведении */
+}
+
+
+</style>
+
+<link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}"> <!-- Подключение CSS файла -->
+
 {% endblock %}

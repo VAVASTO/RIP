@@ -1,6 +1,6 @@
 {% extends 'pages/home.html' %}
 {% load static %}
-{% block title %}{{ modeling.type }}{{ data.id }}{% endblock %}
+{% block title %}{{ modeling.name }}{{ data.id }}{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" type="text/css" href="{% static 'css/view_service.css' %}">
@@ -9,14 +9,11 @@
     <div class="row">
         <div class="col">
             <div class="card">
-                <img src="{% static modeling.image_url %}" alt="{{ modeling.type }}" class="card-img-top">
+                <img src="{% static modeling.image_url %}" alt="{{ modeling.name }}" class="card-img-top">
                 <div class="card-body">
-                    <h5 class="card-title">{{ modeling.type }}</h5>
+                    <h5 class="card-title">{{ modeling.name }}</h5>
                     <p class="card-text">{{ modeling.description }}</p>
                     <p class="card-text">Цена: {{ modeling.price }} рублей</p>
-                </div>
-                <div class="card-button">
-                    <a href="#" class="btn btn-success">Заказать</a>
                 </div>
             </div>
         </div>
