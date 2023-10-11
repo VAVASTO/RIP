@@ -3,3 +3,4 @@ call_center/call_center/__pycache__/
 call_center/call_center/pages/__pycache__/
 call_center/pages/migrations/__pycache__/
 .env/
+.venv/
