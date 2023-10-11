@@ -194,6 +194,7 @@
     position: relative;
 }
     
-    .close-button:hover {
-        color: red; /* Цвет кнопки при наведении */
-    }
+.close-button:hover {
+    color: red; /* Цвет кнопки при наведении */
+}
+
