@@ -92,7 +92,7 @@ class BouquetType(models.Model):
     bouquet_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=30)
     description = models.CharField(max_length=500, blank=True, null=True)
-    price = models.DecimalField(max_digits=30, decimal_places=2, blank=True, null=True)
+    price = models.DecimalField(max_digits=30, decimal_places=2)
     image_url = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=20)
 
@@ -154,9 +154,9 @@ class ServiceRequest(models.Model):
     client_name = models.CharField(max_length=30)
     client_phone = models.CharField(max_length=20)
     client_address = models.CharField(max_length=100, blank=True, null=True)
-    receiving_date = models.DateField(blank=True, null=True)
-    delivery_date = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
+    receiving_date = models.DateTimeField(blank=True, null=True)
+    delivery_date = models.DateTimeField(blank=True, null=True)
+    completion_date = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=10)
 
     class Meta:

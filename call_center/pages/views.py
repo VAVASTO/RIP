@@ -1,94 +1,266 @@
-from django.shortcuts import render, redirect
-from .models import BouquetType
-from django.db import connection
-from django.urls import reverse
-import icecream as ic
-import operator
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from pages.serializers import BouquetSerializer
+from pages.serializers import RequestSerializer
+from pages.serializers import BouquetRequest
+from pages.serializers import BouquetRequestSerializer
+from pages.serializers import ServiceRequestSerializer
+from pages.models import BouquetType
+from rest_framework.decorators import api_view
+from pages.models import Users
+from pages.models import ServiceRequest
+from datetime import datetime
 
-data_modeling = {
-    'modeling': [
-        {
-            'id': 0,
-            'type': '"Букет дня"',
-            'description': 'Подарите себе и своим близким мгновение яркости и радости с нашей услугой "Букет дня". Каждый день наши флористы тщательно отбирают свежие и красочные цветы, чтобы создать уникальный букет. Вы можете заказать его по специальной цене и подарить себе или кому-то другому удивительное цветочное настроение.',
-            'image_url': '../static/images/bouquet_of_the_day.webp',
-            'price': '5000'
-            
-        },
-        {
-            'id': 1,
-            'type': 'Подарочные корзины с цветами',
-            'description': 'Наши подарочные корзины - это полный праздник в одной упаковке. Мы предлагаем широкий выбор букетов цветов, которые можно дополнить шоколадом, вином, ароматическими свечами или даже плюшевыми мишками. Отправьте этот прекрасный подарок с доставкой к двери, чтобы порадовать кого-то особенного.',
-            'image_url': '../static/images/basket_with_flowers.jpeg',
-            'price': '7000'
-        },
-        {
-            'id': 2,
-            'type': 'Цветы на юбилей',
-            'description': 'Когда наступает время отмечать важный юбилей, наши цветы делают это еще более особенным. Наши флористы создадут букет, который отражает длительность и красоту ваших отношений. Доставьте этот букет цветов с душой и стилем.',
-            'image_url': '../static/images/flowers_for_anniversary.png',
-            'price': '9000'
-        },
-        {
-            'id': 3,
-            'type': 'Цветы на свадьбу',
-            'description': 'Для вашего особенного дня мы предлагаем услугу оформления свадебных цветов с доставкой и установкой на месте. Мы создадим магические цветочные композиции, которые подчеркнут красоту и романтику вашей свадьбы. Доверьтесь нам, чтобы сделать этот день незабываемым.',
-            'image_url': '../static/images/flowers_for_merry.jpg',
-            'price': '10000'
-        },
-        {
-            'id': 4,
-            'type': 'Цветы на выпускной',
-            'description': 'Поздравьте выпускников с нашими уникальными букетами. Наши цветы помогут создать незабываемую атмосферу и добавят радости в это важное событие. Закажите доставку к двери и сделайте этот день особенным для них.',
-            'image_url': '../static/images/flowers_for_outlet.jpg',
-            'price': '8000'
-        },
-        {
-            'id': 5,
-            'type': 'Сладкий букет',
-            'description': 'Мы создаем уникальные композиции, объединяя свежие цветы и вкусные сладости, чтобы сделать ваш подарок особенным. Сладкие букеты идеально подходят для различных событий - от дней рождения до свадеб и корпоративных мероприятий.',
-            'image_url': '../static/images/sweet_bouquet.jpg',
-            'price': '6000'
-        }
-    ]
-}
+from enum import Enum
 
+class UsersENUM(Enum):
+    MODERATOR_ID = 1
+    USER_ID = 2
+    
 
-def services(request):
-    query = request.GET.get('q')
+@api_view(["Get"])
+def get_bouquet_list(request, format=None):
+    bouquet_type_list = BouquetType.objects.filter(status="in_stock")
+    serializer = BouquetSerializer(bouquet_type_list, many=True)
+    return Response(serializer.data)
 
-    if query:
-        filtered_data = BouquetType.objects.filter(name__icontains=query, status='in_stock').order_by("bouquet_id")
-    else:
-        filtered_data = BouquetType.objects.filter(status='in_stock').order_by("bouquet_id")
+@api_view(["Get"])
+def get_bouquet_detail(request, pk, format=None):
+    bouquet = get_object_or_404(BouquetType, pk=pk)
+    if request.method == 'GET':
+        serializer = BouquetSerializer(bouquet)
+        return Response(serializer.data)
+    
 
-    if not query:
-        query = ''  
-        
-    return render(request, "pages/services.html", {'filtered_data': filtered_data, 'search_value': query})
+@api_view(["Post"])
+def add_bouquet(request, format=None):
+    user_id = UsersENUM.MODERATOR_ID.value
+    user_status = Users.objects.get(user_id=user_id).position
+    if user_status == "manager":
+        serializer = BouquetSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"Error": "This user cannot add new bouquets"}, status=status.HTTP_400_BAD_REQUEST)
 
-def delete_item(id):
+@api_view(["Put"])
+def change_bouquet_props(request, pk, format=None):
+    user_id = UsersENUM.MODERATOR_ID.value
+    user_status = Users.objects.get(user_id=user_id).position
+    if user_status == "manager":
+        bouquet = get_object_or_404(BouquetType, pk=pk)
+        serializer = BouquetSerializer(bouquet, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"Error": "This user cannot change bouquets"}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["Delete"])
+def delete_bouquet(request, pk, format=None):
+    user_id = UsersENUM.MODERATOR_ID.value
+    user_status = Users.objects.get(user_id=user_id).position
+    if user_status == "manager":
+        bouquet = get_object_or_404(BouquetType, pk=pk)
+        bouquet.status = "out_of_stock"
+        bouquet.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    return Response({"Error": "This user cannot delete bouquets"}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["Get"])
+def get_requests_list(request, format=None):
+
+    start_date = request.GET.get('start_date', None)
+    end_date = request.GET.get('end_date', None)
+    status = request.GET.get('status', None)
+    
+    requests_list = ServiceRequest.objects.all()
+
+    if start_date:
+        requests_list = requests_list.filter(receiving_date__gte=start_date)
+        if end_date:
+            requests_list = requests_list.filter(receiving_date__lte=end_date)
+    if status:
+        requests_list = requests_list.filter(status=status)
+
+    serializer = RequestSerializer(requests_list, many=True)
+    return Response(serializer.data)
+
+@api_view(["Get"])
+def get_request_detail(request, pk, format=None):
+    service_request = get_object_or_404(ServiceRequest, pk=pk)
+    serializer = ServiceRequestSerializer(service_request)
+
+    return Response(serializer.data)
+
+@api_view(["POST"])
+def add_bouquet_to_service_request(request, pk, format=None):
+    service_request = get_object_or_404(ServiceRequest, pk=pk)
+
+    bouquet_id = request.data.get('bouquet_id')
+
     try:
-        with connection.cursor() as cursor:
-            
-            quarry = f"UPDATE bouquet_type SET status = 'out_of_stock' WHERE bouquet_id = %s"
-            cursor.execute(quarry, [id])
-            connection.commit()
-            
-            return True
-    except Exception as e:
-        print(f"Произошла ошибка: {str(e)}")
-        return False
-    
-def update_cards_page(request, model_id):
-    if not delete_item(model_id):
-        pass
-    return redirect('/')
-    
+        bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
+    except BouquetType.DoesNotExist:
+        return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    bouquet_request = BouquetRequest.objects.create(
+        bouquet=bouquet,
+        request=service_request,
+        quantity=request.data.get('quantity', 1)
+    )
 
-def view_service(request, model_id):
-    bouquet = BouquetType.objects.get(pk=model_id)
-    return render(request, 'pages/view_service.html', {
-        'modeling': bouquet
-    })
+    serializer = ServiceRequestSerializer(service_request)
+
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+@api_view(["PUT"])
+def change_bouquet_quantity(request, request_id, bouquet_id, format=None):
+    service_request = get_object_or_404(ServiceRequest, pk=request_id)
+
+    bouquet_request = get_object_or_404(BouquetRequest, request=service_request, bouquet_id=bouquet_id)
+
+    new_quantity = request.data.get('quantity')
+    if new_quantity is not None:
+        bouquet_request.quantity = new_quantity
+        bouquet_request.save()
+
+        serializer = ServiceRequestSerializer(service_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    else:
+        return Response({'error': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(["DELETE"])
+def delete_bouquet_from_service_request(request, request_id, bouquet_id, format=None):
+    service_request = get_object_or_404(ServiceRequest, pk=request_id)
+
+    bouquet_request = get_object_or_404(BouquetRequest, request=service_request, bouquet_id=bouquet_id)
+
+    bouquet_request.delete()
+
+    serializer = ServiceRequestSerializer(service_request)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(["DELETE"])
+def delete_service_request(request, request_id, format=None):
+    service_request = get_object_or_404(ServiceRequest, pk=request_id)
+
+    user_id = request.query_params.get('user_id')
+
+    try:
+        user = Users.objects.get(user_id=user_id)
+        if user.position != 'manager':
+            return Response({'error': 'User does not have manager status'}, status=status.HTTP_403_FORBIDDEN)
+    except Users.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    service_request.status = 'deleted'
+    service_request.save()
+
+    return Response({'message': 'Service request deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(["PUT"])
+def change_service_request_status(request, request_id, format=None):
+    service_request = get_object_or_404(ServiceRequest, pk=request_id)
+
+    user_id = request.query_params.get('user_id')
+    print(f"user_id = {user_id}")
+
+    try:
+        user = Users.objects.get(user_id=user_id)
+        current_status = service_request.status
+        new_status = request.data.get('status')
+
+        if current_status == 'draft':
+            if user.position != 'manager':
+                return Response({'error': 'Manager status required to change status from draft to formed'}, status=status.HTTP_403_FORBIDDEN)
+
+            if not new_status:
+                return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+            service_request.status = 'formed'
+            
+            service_request.receiving_date = datetime.now()
+
+        elif current_status == 'formed':
+            if user.position != 'packer':
+                return Response({'error': 'Packer status required to change status from formed to packed or rejected'}, status=status.HTTP_403_FORBIDDEN)
+            
+            if new_status in ['rejected', 'packed']:
+                service_request.packer = user_id
+                service_request.status = new_status
+            else:
+                return Response({'error': 'Invalid status. Allowed values: rejected, packed'}, status=status.HTTP_400_BAD_REQUEST)
+
+        elif current_status == 'packed' or current_status == 'delivering':
+            if user.position != 'courier':
+                return Response({'error': 'Courier status required to change status from packed to delivering or completed'}, status=status.HTTP_403_FORBIDDEN)
+         
+            if new_status in ['delivering', 'completed']:
+                service_request.courier = user
+                service_request.status = new_status
+
+                if new_status == 'completed':
+                    service_request.completion_date = datetime.now()
+            else:
+                return Response({'error': 'Invalid status. Allowed values: delivering, completed'}, status=status.HTTP_400_BAD_REQUEST)
+
+        service_request.save()
+        return Response({'message': 'Service request status changed successfully'}, status=status.HTTP_200_OK)
+
+    except Users.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(["POST"])
+def new_service_request(request, format=None):
+    current_user_id = request.query_params.get('user_id')
+    try:
+        current_user = Users.objects.get(user_id=current_user_id)
+    except Users.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if current_user.position != 'manager':
+        return Response({'error': 'Manager status required to create a new service request'}, status=status.HTTP_403_FORBIDDEN)
+
+    draft_request = ServiceRequest.objects.filter(manager=current_user, status='draft').first()
+
+    if draft_request:
+        bouquet_id = request.data.get('bouquet_id')
+        quantity = request.data.get('quantity', 1)
+
+        try:
+            bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
+        except BouquetType.DoesNotExist:
+            return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        BouquetRequest.objects.create(bouquet=bouquet, request=draft_request, quantity=quantity)
+
+        return Response({'message': 'Bouquet added to the existing draft request'}, status=status.HTTP_200_OK)
+    else:
+        client_name = request.data.get('client_name')
+        client_phone = request.data.get('client_phone')
+        client_address = request.data.get('client_address')
+        delivery_date = request.data.get('delivery_date')
+
+        new_request = ServiceRequest.objects.create(
+            manager=current_user,
+            client_name=client_name,
+            client_phone=client_phone,
+            client_address=client_address,
+            delivery_date=delivery_date,
+            status='draft'
+        )
+
+        bouquet_id = request.data.get('bouquet_id')
+        quantity = request.data.get('quantity', 1)
+
+        try:
+            bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
+        except BouquetType.DoesNotExist:
+            new_request.delete()  
+            return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        BouquetRequest.objects.create(bouquet=bouquet, request=new_request, quantity=quantity)
+
+        return Response({'message': 'New service request created with the bouquet'}, status=status.HTTP_201_CREATED)

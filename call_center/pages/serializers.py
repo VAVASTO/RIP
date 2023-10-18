@@ -1,0 +1,88 @@
+from rest_framework import serializers
+
+from pages.models import BouquetType
+from pages.models import Users
+from pages.models import ServiceRequest
+from pages.models import BouquetRequest
+
+class BouquetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BouquetType
+        fields = [
+            "bouquet_id",
+            "name",
+            "description",
+            "price",
+            "image_url",
+            "status",
+        ]
+
+class UsersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Users
+        fields = [
+            "user_id",
+            "name",
+            "phone",
+            "email",
+            "position",
+            "status",
+        ]
+
+class RequestSerializer(serializers.ModelSerializer):
+    manager = UsersSerializer(read_only=True)  
+    packer = UsersSerializer(read_only=True)   
+    courier = UsersSerializer(read_only=True)  
+
+    class Meta:
+        model = ServiceRequest
+        fields = [
+            "request_id",
+            "manager",
+            "packer",
+            "courier",
+            "client_name",
+            "client_phone",
+            "client_address",
+            "receiving_date",
+            "delivery_date",
+            "completion_date",
+            "status",
+        ]
+
+class BouquetTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BouquetType
+        fields = ['bouquet_id', 
+                  'name',
+                  'price',
+                  'image_url']
+
+class BouquetRequestSerializer(serializers.ModelSerializer):
+    bouquet = BouquetTypeSerializer()
+
+    class Meta:
+        model = BouquetRequest
+        fields = ['bouquet', 
+                  'quantity']
+
+class ServiceRequestSerializer(serializers.ModelSerializer):
+    manager = UsersSerializer(read_only=True) 
+    packer = UsersSerializer(read_only=True) 
+    courier = UsersSerializer(read_only=True) 
+    bouquet_details = BouquetRequestSerializer(many=True, source='bouquetrequest_set')
+
+    class Meta:
+        model = ServiceRequest
+        fields = ['request_id', 
+                  'manager', 
+                  'packer', 
+                  'courier', 
+                  'client_name', 
+                  'client_phone',
+                  'client_address', 
+                  'receiving_date', 
+                  'delivery_date', 
+                  'completion_date', 
+                  'status',
+                  'bouquet_details']
