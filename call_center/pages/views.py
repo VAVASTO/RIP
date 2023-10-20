@@ -85,6 +85,7 @@ def get_requests_list(request, format=None):
     if status:
         requests_list = requests_list.filter(status=status)
 
+    requests_list = requests_list.order_by('-receiving_date')
     serializer = RequestSerializer(requests_list, many=True)
     return Response(serializer.data)
 
@@ -95,7 +96,7 @@ def get_request_detail(request, pk, format=None):
 
     return Response(serializer.data)
 
-@api_view(["POST"])
+@api_view(["PUT"])
 def add_bouquet_to_service_request(request, pk, format=None):
     service_request = get_object_or_404(ServiceRequest, pk=pk)
 
@@ -173,12 +174,15 @@ def change_service_request_status(request, request_id, format=None):
         current_status = service_request.status
         new_status = request.data.get('status')
 
+        print(user.position)
         if current_status == 'draft':
             if user.position != 'manager':
                 return Response({'error': 'Manager status required to change status from draft to formed'}, status=status.HTTP_403_FORBIDDEN)
 
             if not new_status:
                 return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+            if new_status != 'formed':
+                return Response({'error': 'Manager status required to change status from draft to  formed'}, status=status.HTTP_403_FORBIDDEN)
             service_request.status = 'formed'
             
             service_request.receiving_date = datetime.now()
@@ -212,8 +216,8 @@ def change_service_request_status(request, request_id, format=None):
     except Users.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-@api_view(["POST"])
-def new_service_request(request, format=None):
+@api_view(["PUT"])
+def update_service_request(request, format=None):
     current_user_id = request.query_params.get('user_id')
     try:
         current_user = Users.objects.get(user_id=current_user_id)
@@ -225,23 +229,36 @@ def new_service_request(request, format=None):
 
     draft_request = ServiceRequest.objects.filter(manager=current_user, status='draft').first()
 
+    client_name = request.data.get('client_name')
+    client_phone = request.data.get('client_phone')
+    client_address = request.data.get('client_address')
+    delivery_date = request.data.get('delivery_date')
     if draft_request:
+        print("draft_request")
         bouquet_id = request.data.get('bouquet_id')
         quantity = request.data.get('quantity', 1)
 
-        try:
-            bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
-        except BouquetType.DoesNotExist:
-            return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+        if client_name:
+            draft_request.client_name = client_name
+        if client_phone:
+            draft_request.client_phone = client_phone
+        if client_address:
+            draft_request.client_address = client_address
+        if delivery_date:
+            draft_request.delivery_date = delivery_date
 
-        BouquetRequest.objects.create(bouquet=bouquet, request=draft_request, quantity=quantity)
+        draft_request.save()
+        print(f"bouquet_id = {bouquet_id}")
+        if bouquet_id:
+            try:
+                bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
+            except BouquetType.DoesNotExist:
+                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            BouquetRequest.objects.create(bouquet=bouquet, request=draft_request, quantity=quantity)
 
         return Response({'message': 'Bouquet added to the existing draft request'}, status=status.HTTP_200_OK)
     else:
-        client_name = request.data.get('client_name')
-        client_phone = request.data.get('client_phone')
-        client_address = request.data.get('client_address')
-        delivery_date = request.data.get('delivery_date')
 
         new_request = ServiceRequest.objects.create(
             manager=current_user,
@@ -254,13 +271,15 @@ def new_service_request(request, format=None):
 
         bouquet_id = request.data.get('bouquet_id')
         quantity = request.data.get('quantity', 1)
-
-        try:
-            bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
-        except BouquetType.DoesNotExist:
-            new_request.delete()  
-            return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+        print(f"bouquet_id = {bouquet_id}")
+        if bouquet_id:
+            try:
+                bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
+            except BouquetType.DoesNotExist:
+                new_request.delete()  
+                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
 
         BouquetRequest.objects.create(bouquet=bouquet, request=new_request, quantity=quantity)
 
         return Response({'message': 'New service request created with the bouquet'}, status=status.HTTP_201_CREATED)
+    

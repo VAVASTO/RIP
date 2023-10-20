@@ -18,7 +18,7 @@ urlpatterns = [
     path(r'requests/<int:request_id>/bouquets_delete/<int:bouquet_id>/', views.delete_bouquet_from_service_request, name='delete_bouquet'),
     path(r'requests/<int:request_id>/delete/', views.delete_service_request, name='delete_service_request'),
     path(r'requests/<int:request_id>/change_status/', views.change_service_request_status, name='change_service_request_status'),
-    path(r'requests/new_service_request/', views.new_service_request, name='new_service_request'),
+    path(r'requests/update_service_request/', views.update_service_request, name='new_service_request'),
 
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
