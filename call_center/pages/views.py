@@ -2,153 +2,157 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from pages.serializers import BouquetSerializer
-from pages.serializers import RequestSerializer
-from pages.serializers import BouquetRequest
-from pages.serializers import BouquetRequestSerializer
-from pages.serializers import ServiceRequestSerializer
+from pages.serializers import ApplicationSerializer
+from pages.serializers import BouquetApplication
+from pages.serializers import BouquetApplicationSerializer
+from pages.serializers import ServiceApplicationSerializer
 from pages.models import BouquetType
 from rest_framework.decorators import api_view
 from pages.models import Users
-from pages.models import ServiceRequest
+from pages.models import ServiceApplication
 from datetime import datetime
 
 from enum import Enum
 
 class UsersENUM(Enum):
-    MODERATOR_ID = 1
+    MANAGER_ID = 1
     USER_ID = 2
     
 
 @api_view(["Get"])
-def get_bouquet_list(request, format=None):
+def get_bouquet_list(application, format=None):
     bouquet_type_list = BouquetType.objects.filter(status="in_stock")
     serializer = BouquetSerializer(bouquet_type_list, many=True)
     return Response(serializer.data)
 
 @api_view(["Get"])
-def get_bouquet_detail(request, pk, format=None):
+def get_bouquet_detail(application, pk, format=None):
     bouquet = get_object_or_404(BouquetType, pk=pk)
-    if request.method == 'GET':
+    if application.method == 'GET':
         serializer = BouquetSerializer(bouquet)
         return Response(serializer.data)
     
 
 @api_view(["Post"])
-def add_bouquet(request, format=None):
-    user_id = UsersENUM.MODERATOR_ID.value
-    user_status = Users.objects.get(user_id=user_id).position
-    if user_status == "manager":
-        serializer = BouquetSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    return Response({"Error": "This user cannot add new bouquets"}, status=status.HTTP_400_BAD_REQUEST)
+def create_bouquet(application, format=None):
+    serializer = BouquetSerializer(data=application.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["Put"])
-def change_bouquet_props(request, pk, format=None):
-    user_id = UsersENUM.MODERATOR_ID.value
-    user_status = Users.objects.get(user_id=user_id).position
-    if user_status == "manager":
-        bouquet = get_object_or_404(BouquetType, pk=pk)
-        serializer = BouquetSerializer(bouquet, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    return Response({"Error": "This user cannot change bouquets"}, status=status.HTTP_400_BAD_REQUEST)
+@api_view(["POST"])
+def add_bouquet(application, pk, quantity, format=None):
+    bouquet_id = pk
+    draft_application = ServiceApplication.objects.filter(status='draft').first()
+    if draft_application:
+        print("draft_application")
+
+        draft_application.save()
+        print(f"bouquet_id = {bouquet_id}")
+        if bouquet_id:
+            try:
+                bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
+            except BouquetType.DoesNotExist:
+                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            BouquetApplication.objects.create(bouquet=bouquet, application=draft_application, quantity=quantity)
+
+        return Response({'message': 'Bouquet added to the existing draft application'}, status=status.HTTP_200_OK)
+    else:
+        current_user = Users.objects.get(user_id=1)
+        new_application = ServiceApplication.objects.create(
+            manager=current_user,
+            status='draft'
+        )
+
+        bouquet_id = application.data.get('bouquet_id')
+        print(f"bouquet_id = {bouquet_id}")
+        if bouquet_id:
+            try:
+                bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
+                BouquetApplication.objects.create(bouquet=bouquet, application=new_application, quantity=quantity)
+            except BouquetType.DoesNotExist:
+                new_application.delete()  
+                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({'message': 'New service application created with the bouquet'}, status=status.HTTP_201_CREATED)
+
+@api_view(["PUT"])
+def change_bouquet_props(application, pk, format=None):
+    bouquet = get_object_or_404(BouquetType, pk=pk)
+    serializer = BouquetSerializer(bouquet, data=application.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(["Delete"])
-def delete_bouquet(request, pk, format=None):
-    user_id = UsersENUM.MODERATOR_ID.value
-    user_status = Users.objects.get(user_id=user_id).position
-    if user_status == "manager":
-        bouquet = get_object_or_404(BouquetType, pk=pk)
-        bouquet.status = "out_of_stock"
-        bouquet.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    return Response({"Error": "This user cannot delete bouquets"}, status=status.HTTP_400_BAD_REQUEST)
+def delete_bouquet(application, pk, format=None):
+    bouquet = get_object_or_404(BouquetType, pk=pk)
+    bouquet.status = "out_of_stock"
+    bouquet.save()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(["Get"])
-def get_requests_list(request, format=None):
+def get_applications_list(application, format=None):
 
-    start_date = request.GET.get('start_date', None)
-    end_date = request.GET.get('end_date', None)
-    status = request.GET.get('status', None)
+    start_date = application.GET.get('start_date', None)
+    end_date = application.GET.get('end_date', None)
+    status = application.GET.get('status', None)
     
-    requests_list = ServiceRequest.objects.all()
+    applications_list = ServiceApplication.objects.all()
 
     if start_date:
-        requests_list = requests_list.filter(receiving_date__gte=start_date)
+        applications_list = applications_list.filter(receiving_date__gte=start_date)
         if end_date:
-            requests_list = requests_list.filter(receiving_date__lte=end_date)
+            applications_list = applications_list.filter(receiving_date__lte=end_date)
     if status:
-        requests_list = requests_list.filter(status=status)
+        applications_list = applications_list.filter(status=status)
 
-    requests_list = requests_list.order_by('-receiving_date')
-    serializer = RequestSerializer(requests_list, many=True)
+    applications_list = applications_list.order_by('-receiving_date')
+    serializer = ApplicationSerializer(applications_list, many=True)
     return Response(serializer.data)
 
 @api_view(["Get"])
-def get_request_detail(request, pk, format=None):
-    service_request = get_object_or_404(ServiceRequest, pk=pk)
-    serializer = ServiceRequestSerializer(service_request)
+def get_application_detail(application, pk, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=pk)
+    serializer = ServiceApplicationSerializer(service_application)
 
     return Response(serializer.data)
 
 @api_view(["PUT"])
-def add_bouquet_to_service_request(request, pk, format=None):
-    service_request = get_object_or_404(ServiceRequest, pk=pk)
+def change_bouquet_quantity(application, application_id, bouquet_id, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
-    bouquet_id = request.data.get('bouquet_id')
+    bouquet_application = get_object_or_404(BouquetApplication, application=service_application, bouquet_id=bouquet_id)
 
-    try:
-        bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
-    except BouquetType.DoesNotExist:
-        return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    bouquet_request = BouquetRequest.objects.create(
-        bouquet=bouquet,
-        request=service_request,
-        quantity=request.data.get('quantity', 1)
-    )
-
-    serializer = ServiceRequestSerializer(service_request)
-
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-@api_view(["PUT"])
-def change_bouquet_quantity(request, request_id, bouquet_id, format=None):
-    service_request = get_object_or_404(ServiceRequest, pk=request_id)
-
-    bouquet_request = get_object_or_404(BouquetRequest, request=service_request, bouquet_id=bouquet_id)
-
-    new_quantity = request.data.get('quantity')
+    new_quantity = application.data.get('quantity')
     if new_quantity is not None:
-        bouquet_request.quantity = new_quantity
-        bouquet_request.save()
+        bouquet_application.quantity = new_quantity
+        bouquet_application.save()
 
-        serializer = ServiceRequestSerializer(service_request)
+        serializer = ServiceApplicationSerializer(service_application)
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
     
 @api_view(["DELETE"])
-def delete_bouquet_from_service_request(request, request_id, bouquet_id, format=None):
-    service_request = get_object_or_404(ServiceRequest, pk=request_id)
+def delete_bouquet_from_application(application, application_id, bouquet_id, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
-    bouquet_request = get_object_or_404(BouquetRequest, request=service_request, bouquet_id=bouquet_id)
+    bouquet_application = get_object_or_404(BouquetApplication, application=service_application, bouquet_id=bouquet_id)
 
-    bouquet_request.delete()
+    bouquet_application.delete()
 
-    serializer = ServiceRequestSerializer(service_request)
+    serializer = ServiceApplicationSerializer(service_application)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(["DELETE"])
-def delete_service_request(request, request_id, format=None):
-    service_request = get_object_or_404(ServiceRequest, pk=request_id)
+def delete_service_application(application, application_id, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
-    user_id = request.query_params.get('user_id')
+    user_id = application.query_params.get('user_id')
 
     try:
         user = Users.objects.get(user_id=user_id)
@@ -157,129 +161,151 @@ def delete_service_request(request, request_id, format=None):
     except Users.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    service_request.status = 'deleted'
-    service_request.save()
+    service_application.status = 'deleted'
+    service_application.save()
 
-    return Response({'message': 'Service request deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-
-@api_view(["PUT"])
-def change_service_request_status(request, request_id, format=None):
-    service_request = get_object_or_404(ServiceRequest, pk=request_id)
-
-    user_id = request.query_params.get('user_id')
-    print(f"user_id = {user_id}")
-
-    try:
-        user = Users.objects.get(user_id=user_id)
-        current_status = service_request.status
-        new_status = request.data.get('status')
-
-        print(user.position)
-        if current_status == 'draft':
-            if user.position != 'manager':
-                return Response({'error': 'Manager status required to change status from draft to formed'}, status=status.HTTP_403_FORBIDDEN)
-
-            if not new_status:
-                return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
-            if new_status != 'formed':
-                return Response({'error': 'Manager status required to change status from draft to  formed'}, status=status.HTTP_403_FORBIDDEN)
-            service_request.status = 'formed'
-            
-            service_request.receiving_date = datetime.now()
-
-        elif current_status == 'formed':
-            if user.position != 'packer':
-                return Response({'error': 'Packer status required to change status from formed to packed or rejected'}, status=status.HTTP_403_FORBIDDEN)
-            
-            if new_status in ['rejected', 'packed']:
-                service_request.packer = user_id
-                service_request.status = new_status
-            else:
-                return Response({'error': 'Invalid status. Allowed values: rejected, packed'}, status=status.HTTP_400_BAD_REQUEST)
-
-        elif current_status == 'packed' or current_status == 'delivering':
-            if user.position != 'courier':
-                return Response({'error': 'Courier status required to change status from packed to delivering or completed'}, status=status.HTTP_403_FORBIDDEN)
-         
-            if new_status in ['delivering', 'completed']:
-                service_request.courier = user
-                service_request.status = new_status
-
-                if new_status == 'completed':
-                    service_request.completion_date = datetime.now()
-            else:
-                return Response({'error': 'Invalid status. Allowed values: delivering, completed'}, status=status.HTTP_400_BAD_REQUEST)
-
-        service_request.save()
-        return Response({'message': 'Service request status changed successfully'}, status=status.HTTP_200_OK)
-
-    except Users.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'message': 'Service application deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 @api_view(["PUT"])
-def update_service_request(request, format=None):
-    current_user_id = request.query_params.get('user_id')
+def change_status_manager(application, application_id, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=application_id)
+
+    current_status = service_application.status
+    new_status = application.data.get('application_status')
+
+    if not new_status:
+        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if current_status == 'draft':
+        if new_status != 'formed' and new_status != 'deleted':
+            return Response({'error': 'Manager status required to change status from draft to formed or deleted'}, status=status.HTTP_403_FORBIDDEN)
+        service_application.status = new_status
+        service_application.receiving_date = datetime.now()
+
+        service_application.save()
+        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+    
+    if current_status == 'formed':       
+        if new_status != 'draft' and new_status != 'deleted':
+            return Response({'error': 'Manager status required to change status from formed to draft or deleted'}, status=status.HTTP_403_FORBIDDEN)
+        service_application.status = new_status
+
+        service_application.save()
+        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+
+    return Response({'error': 'Invalid status. Allowed values: draft, formed, deleted'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["PUT"])
+def change_status_packer(application, application_id, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=application_id)
+
+    current_status = service_application.status
+    new_status = application.data.get('application_status')
+
+    if not new_status:
+        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if current_status == 'formed':       
+        if new_status != 'packed':
+            return Response({'error': 'Packer status required to change status from formed to packed or rejected'}, status=status.HTTP_403_FORBIDDEN)
+        service_application.status = new_status
+
+        service_application.save()
+        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+
+    return Response({'error': 'Invalid status. Allowed values: formed'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["PUT"])
+def change_status_courier(application, application_id, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=application_id)
+
+    current_status = service_application.status
+    new_status = application.data.get('application_status')
+
+    if not new_status:
+        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if current_status == 'packed':       
+        if new_status != 'delivering':
+            return Response({'error': 'Courier status required to change status from packed to delivering or completed'}, status=status.HTTP_403_FORBIDDEN)
+        service_application.status = new_status
+
+        service_application.save()
+        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+    
+    if current_status == 'delivering':       
+        if new_status != 'completed':
+            return Response({'error': 'Courier status required to change status from packed to delivering or completed'}, status=status.HTTP_403_FORBIDDEN)
+        service_application.status = new_status
+
+        service_application.save()
+        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+
+    return Response({'error': 'Invalid status. Allowed values: packed'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["PUT"])
+def change_status_moderator(application, application_id, format=None):
+    service_application = get_object_or_404(ServiceApplication, pk=application_id)
+
+    new_status = application.data.get('application_status')
+
+    if not new_status:
+        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+       
+    if new_status != 'cancelled':
+        return Response({'error': 'Moderator status required to change status to cancelled'}, status=status.HTTP_403_FORBIDDEN)
+    service_application.status = new_status
+
+    service_application.save()
+    return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+
+
+@api_view(["PUT"])
+def update_service_application(application, format=None):
+    current_user = Users.objects.get(user_id=1)
+    '''
+    User status check
+
     try:
         current_user = Users.objects.get(user_id=current_user_id)
     except Users.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if current_user.position != 'manager':
-        return Response({'error': 'Manager status required to create a new service request'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'error': 'Manager status required to create a new service application'}, status=status.HTTP_403_FORBIDDEN)
 
-    draft_request = ServiceRequest.objects.filter(manager=current_user, status='draft').first()
+    Add manager check to filter
+    '''
+    draft_application = ServiceApplication.objects.filter(status='draft').first()
 
-    client_name = request.data.get('client_name')
-    client_phone = request.data.get('client_phone')
-    client_address = request.data.get('client_address')
-    delivery_date = request.data.get('delivery_date')
-    if draft_request:
-        print("draft_request")
-        bouquet_id = request.data.get('bouquet_id')
-        quantity = request.data.get('quantity', 1)
-
+    client_name = application.data.get('client_name')
+    client_phone = application.data.get('client_phone')
+    client_address = application.data.get('client_address')
+    delivery_date = application.data.get('delivery_date')
+    if draft_application:
+        print("draft_application")
         if client_name:
-            draft_request.client_name = client_name
+            draft_application.client_name = client_name
         if client_phone:
-            draft_request.client_phone = client_phone
+            draft_application.client_phone = client_phone
         if client_address:
-            draft_request.client_address = client_address
+            draft_application.client_address = client_address
         if delivery_date:
-            draft_request.delivery_date = delivery_date
+            draft_application.delivery_date = delivery_date
 
-        draft_request.save()
-        print(f"bouquet_id = {bouquet_id}")
-        if bouquet_id:
-            try:
-                bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
-            except BouquetType.DoesNotExist:
-                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+        draft_application.save()
+        return Response({'message': 'Application updated successfully'}, status=status.HTTP_200_OK)
 
-            BouquetRequest.objects.create(bouquet=bouquet, request=draft_request, quantity=quantity)
+    new_application = ServiceApplication.objects.create(
+        manager=current_user,
+        client_name=client_name,
+        client_phone=client_phone,
+        client_address=client_address,
+        delivery_date=delivery_date,
+        status='draft'
+    )
 
-        return Response({'message': 'Bouquet added to the existing draft request'}, status=status.HTTP_200_OK)
-    else:
+    BouquetApplication.objects.create(application=new_application)
 
-        new_request = ServiceRequest.objects.create(
-            manager=current_user,
-            client_name=client_name,
-            client_phone=client_phone,
-            client_address=client_address,
-            delivery_date=delivery_date,
-            status='draft'
-        )
-
-        bouquet_id = request.data.get('bouquet_id')
-        quantity = request.data.get('quantity', 1)
-        print(f"bouquet_id = {bouquet_id}")
-        if bouquet_id:
-            try:
-                bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
-            except BouquetType.DoesNotExist:
-                new_request.delete()  
-                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        BouquetRequest.objects.create(bouquet=bouquet, request=new_request, quantity=quantity)
-
-        return Response({'message': 'New service request created with the bouquet'}, status=status.HTTP_201_CREATED)
+    return Response({'message': 'New service application created'}, status=status.HTTP_201_CREATED)
     

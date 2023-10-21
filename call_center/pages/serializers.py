@@ -2,8 +2,8 @@ from rest_framework import serializers
 
 from pages.models import BouquetType
 from pages.models import Users
-from pages.models import ServiceRequest
-from pages.models import BouquetRequest
+from pages.models import ServiceApplication
+from pages.models import BouquetApplication
 
 class BouquetSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,15 +29,15 @@ class UsersSerializer(serializers.ModelSerializer):
             "status",
         ]
 
-class RequestSerializer(serializers.ModelSerializer):
+class ApplicationSerializer(serializers.ModelSerializer):
     manager = UsersSerializer(read_only=True)  
     packer = UsersSerializer(read_only=True)   
     courier = UsersSerializer(read_only=True)  
 
     class Meta:
-        model = ServiceRequest
+        model = ServiceApplication
         fields = [
-            "request_id",
+            "application_id",
             "manager",
             "packer",
             "courier",
@@ -58,23 +58,23 @@ class BouquetTypeSerializer(serializers.ModelSerializer):
                   'price',
                   'image_url']
 
-class BouquetRequestSerializer(serializers.ModelSerializer):
+class BouquetApplicationSerializer(serializers.ModelSerializer):
     bouquet = BouquetTypeSerializer()
 
     class Meta:
-        model = BouquetRequest
+        model = BouquetApplication
         fields = ['bouquet', 
                   'quantity']
 
-class ServiceRequestSerializer(serializers.ModelSerializer):
+class ServiceApplicationSerializer(serializers.ModelSerializer):
     manager = UsersSerializer(read_only=True) 
     packer = UsersSerializer(read_only=True) 
     courier = UsersSerializer(read_only=True) 
-    bouquet_details = BouquetRequestSerializer(many=True, source='bouquetrequest_set')
+    bouquet_details = BouquetApplicationSerializer(many=True, source='bouquetapplication_set')
 
     class Meta:
-        model = ServiceRequest
-        fields = ['request_id', 
+        model = ServiceApplication
+        fields = ['application_id', 
                   'manager', 
                   'packer', 
                   'courier', 

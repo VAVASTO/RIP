@@ -77,15 +77,15 @@ class AuthUserUserPermissions(models.Model):
         unique_together = (('user', 'permission'),)
 
 
-class BouquetRequest(models.Model):
-    bouquet_request_id = models.AutoField(primary_key=True)
+class BouquetApplication(models.Model):
+    bouquet_application_id = models.AutoField(primary_key=True)
     bouquet = models.ForeignKey('BouquetType', models.DO_NOTHING)
-    request = models.ForeignKey('ServiceRequest', models.DO_NOTHING)
+    application = models.ForeignKey('ServiceApplication', models.DO_NOTHING)
     quantity = models.IntegerField()
 
     class Meta:
         managed = False
-        db_table = 'bouquet_request'
+        db_table = 'bouquet_application'
 
 
 class BouquetType(models.Model):
@@ -146,13 +146,13 @@ class DjangoSession(models.Model):
         db_table = 'django_session'
 
 
-class ServiceRequest(models.Model):
-    request_id = models.AutoField(primary_key=True)
+class ServiceApplication(models.Model):
+    application_id = models.AutoField(primary_key=True)
     manager = models.ForeignKey('Users', models.DO_NOTHING)
-    packer = models.ForeignKey('Users', models.DO_NOTHING, related_name='servicerequest_packer_set', blank=True, null=True)
-    courier = models.ForeignKey('Users', models.DO_NOTHING, related_name='servicerequest_courier_set', blank=True, null=True)
-    client_name = models.CharField(max_length=30)
-    client_phone = models.CharField(max_length=20)
+    packer = models.ForeignKey('Users', models.DO_NOTHING, related_name='serviceapplication_packer_set', blank=True, null=True)
+    courier = models.ForeignKey('Users', models.DO_NOTHING, related_name='serviceapplication_courier_set', blank=True, null=True)
+    client_name = models.CharField(max_length=30, blank=True, null=True)
+    client_phone = models.CharField(max_length=20, blank=True, null=True)
     client_address = models.CharField(max_length=100, blank=True, null=True)
     receiving_date = models.DateTimeField(blank=True, null=True)
     delivery_date = models.DateTimeField(blank=True, null=True)
@@ -161,7 +161,7 @@ class ServiceRequest(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'service_request'
+        db_table = 'service_application'
 
 
 class Users(models.Model):
