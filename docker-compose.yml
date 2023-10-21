@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+ db:
+    image: postgres:14.4
+    restart: always
+    environment:
+      POSTGRES_DB: call_center
+      POSTGRES_USER: call_center_user
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - 5433:5432
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/data:/var/lib/postgresql/data

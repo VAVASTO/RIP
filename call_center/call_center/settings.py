@@ -82,7 +82,7 @@ DATABASES = {
         'USER': 'call_center_user',
         'PASSWORD': '1234',
         'HOST': 'localhost',
-        'PORT': 5432,
+        'PORT': 5433,
         'OPTIONS': {'client_encoding': 'utf8'},
         'TEST_CHARSET': 'utf8',
     }
