@@ -6,6 +6,13 @@ from pages.models import ServiceApplication
 from pages.models import BouquetApplication
 
 class BouquetSerializer(serializers.ModelSerializer):
+    full_url = serializers.SerializerMethodField()
+
+    def get_full_url(self, obj):
+        image_url = obj.image_url
+        custom_value = f"http://localhost:9000/images/images/{image_url}"
+        return custom_value
+
     class Meta:
         model = BouquetType
         fields = [
@@ -15,6 +22,7 @@ class BouquetSerializer(serializers.ModelSerializer):
             "price",
             "image_url",
             "status",
+            "full_url", 
         ]
 
 class UsersSerializer(serializers.ModelSerializer):
@@ -50,13 +58,26 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "status",
         ]
 
+from rest_framework import serializers
+from .models import BouquetType
+
 class BouquetTypeSerializer(serializers.ModelSerializer):
+    full_url = serializers.SerializerMethodField()
+
+    def get_full_url(self, obj):
+        image_url = obj.image_url
+        custom_value = f"http://localhost:9000/images/images/{image_url}"
+        return custom_value
+
     class Meta:
         model = BouquetType
-        fields = ['bouquet_id', 
-                  'name',
-                  'price',
-                  'image_url']
+        fields = [
+            "bouquet_id",
+            "name",
+            "price",
+            "image_url",
+            "full_url",
+        ]
 
 class BouquetApplicationSerializer(serializers.ModelSerializer):
     bouquet = BouquetTypeSerializer()

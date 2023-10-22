@@ -11,6 +11,7 @@ from rest_framework.decorators import api_view
 from pages.models import Users
 from pages.models import ServiceApplication
 from datetime import datetime
+from minio import Minio
 
 from enum import Enum
 
@@ -18,6 +19,10 @@ class UsersENUM(Enum):
     MANAGER_ID = 1
     USER_ID = 2
     
+client = Minio(endpoint="localhost:9000",   # адрес сервера
+               access_key='minio',          # логин админа
+               secret_key='minio124',       # пароль админа
+               secure=False)
 
 @api_view(["Get"])
 def get_bouquet_list(application, format=None):
