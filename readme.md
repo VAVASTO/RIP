@@ -5,3 +5,4 @@
 Заказы формирует менеджер, берёт в работу курер и отдаёт клинету
 
 Статусы заяки: draft, deleted, formed, delivering, completed, rejected
+Статусы user: manager, packer, courier 
