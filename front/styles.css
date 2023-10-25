@@ -42,13 +42,11 @@
     }
       
     .footer {
-        background-color: #c9b09d;
-        height: 50px;
-        bottom: 0; /* Закрепляем нижнюю полосу внизу */
-        left: 0;
-        right: 0;
-        z-index: 999;
-        transition: background-color 0.3s;
+        position: fixed;
+  top: calc(100vh - 20px);
+  width: 100vw;
+  height: 20px;
+  background-color: blue;
     }
     
     /* Стили для контейнера с карточками */

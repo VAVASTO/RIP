@@ -42,13 +42,11 @@
     }
 
     .footer {
-        background-color: #c9b09d;
+        position: fixed;
+        top: calc(100vh - 50px);
+        width: 100vw;
         height: 50px;
-        bottom: 0; /* Закрепляем нижнюю полосу внизу */
-        left: 0;
-        right: 0;
-        z-index: 999;
-        transition: background-color 0.3s;
+        background-color: #c9b09d;
     }
     
     /* Стили для контейнера с карточками */
@@ -58,7 +56,7 @@
         flex-wrap: wrap;
         justify-content: space-around;
         padding: 20px;
-        margin-top: 17px; /* Добавляем отступ сверху, чтобы контейнер не перекрывал верхнюю полоску */
+        margin-top: 40px; /* Добавляем отступ сверху, чтобы контейнер не перекрывал верхнюю полоску */
         min-height: calc(100% - 107px); /* Subtract the header and footer heights */
     }
 
@@ -99,16 +97,17 @@
     /* Стили для карточки */
     .card {
         display: flex; /* Используем Flexbox */
-        flex-direction: row; /* Display cards in a column */
         background-color: rgb(255, 255, 255);
         border: 1px solid #ddd;
         border-radius: 10px;
-        width: 1150px;
+        margin: 10px;
+        max-width: 1150px;
+        flex: 1; /* Распределение карточек по ширине */
         overflow: hidden;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         transition: transform 0.2s ease-in-out; /* Анимация увеличения */
     }
-    
+
     .card:hover {
         transform: scale(1.02); /* Увеличиваем карточку при наведении на неё */
     }
@@ -193,6 +192,6 @@
     position: relative;
 }
     
-    
-    
-   
+.close-button:hover {
+    color: red; /* Цвет кнопки при наведении */
+}
