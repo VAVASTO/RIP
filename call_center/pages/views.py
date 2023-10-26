@@ -24,9 +24,16 @@ client = Minio(endpoint="localhost:9000",   # адрес сервера
                secret_key='minio124',       # пароль админа
                secure=False)
 
-@api_view(["Get"])
-def get_bouquet_list(application, format=None):
-    bouquet_type_list = BouquetType.objects.filter(status="in_stock")
+@api_view(["GET"])
+def get_bouquet_list(request, format=None):
+    query = request.GET.get('q')
+    print(query)  # Print the query to debug
+    
+    if query:
+        bouquet_type_list = BouquetType.objects.filter(name__icontains=query, status='in_stock').order_by("bouquet_id")
+    else:
+        bouquet_type_list = BouquetType.objects.filter(status='in_stock').order_by("bouquet_id")
+    
     serializer = BouquetSerializer(bouquet_type_list, many=True)
     return Response(serializer.data)
 
