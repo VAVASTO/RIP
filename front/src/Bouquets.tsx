@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from 'react';
+import { FC, useState, useEffect } from 'react';
 import { Spinner } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './Bouquet.css';
