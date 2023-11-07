@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import Breadcrumbs from './Breadcrumbs';
 import './BouquetDetail.css';
 
 const BouquetDetailPage: React.FC = () => {
@@ -12,6 +13,12 @@ const BouquetDetailPage: React.FC = () => {
     full_url: ''
   });
   const [loading, setLoading] = useState(true);
+
+  const breadcrumbsItems = [
+    { label: 'Все букеты', link: '/bouquetss' },
+    { label: 'Подробнее' } 
+  ];
+
 
   useEffect(() => {
     const fetchBouquetData = async () => {
@@ -37,10 +44,9 @@ const BouquetDetailPage: React.FC = () => {
 
   return (
     <div className="container">
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
+      {
         <div className="row">
+          <Breadcrumbs items={breadcrumbsItems} /> {/* Include Breadcrumbs component */}
           <div className="col">
             <div className="card">
               <img src={bouquetData.full_url} alt={bouquetData.name} className="card-img-top" />
@@ -52,7 +58,7 @@ const BouquetDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      }
     </div>
   );
 };
