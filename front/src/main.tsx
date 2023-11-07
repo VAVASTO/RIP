@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { createBrowserRouter, RouterProvider, Routes, Route, Link } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import BouquetsPage from './Bouquets';
 import BouquetDetailPage from './BouquetDetail';  // Import your BouquetDetail component
 
@@ -10,7 +10,7 @@ const router = createBrowserRouter([
     element: <h1>Это наша стартовая страница</h1>,
   },
   {
-    path: '/new',
+    path: '/RIP/',
     element: <h1>Это наша страница с чем-то новеньким</h1>,
   },
   {

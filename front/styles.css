@@ -1,54 +1,3 @@
-    /* Стили для страницы */
-    body {
-        font-family: Arial, sans-serif;
-        background-color: rgb(240, 240, 240); 
-        margin: 0;
-        padding: 0;
-    }
-
-    /* Стили для заголовка */
-    header {
-        background-color: #c9b09d; /* Более тёмный кремовый цвет */
-        color: #fff;
-        text-align: center;
-        padding: 10px;
-        display: flex;
-        align-items: center;
-        height: 50px; /* Увеличиваем высоту верхней полоски */
-        position: fixed; /* Фиксируем верхнюю полоску */
-        top: 0; /* Закрепляем верхнюю полоску наверху */
-        left: 0;
-        right: 0;
-        z-index: 999; /* Устанавливаем высший z-index, чтобы верхняя полоска была поверх других элементов */
-        transition: background-color 0.3s; /* Добавляем плавное изменение цвета фона */
-    }
-
-
-    .logo {
-        width: 100px; /* Устанавливаем ширину логотипа в 10 пикселей */
-        height: 60px; /* Устанавливаем высоту логотипа в 10 пикселей */
-        margin-left: 10px; /* Добавляем отступ слева от логотипа */
-        margin-right: 20px;
-    }
-
-    .header-title {
-        flex-grow: 1; /* Расширяем контейнер с текстом, чтобы он занимал доступное пространство */
-        text-align: right; /* Выравниваем текст справа */
-        margin-right: 10px; /* Добавляем отступ справа от текста */
-    }
-
-    html, body {
-        height: 100%;
-    }
-      
-    .footer {
-        position: fixed;
-  top: calc(100vh - 20px);
-  width: 100vw;
-  height: 20px;
-  background-color: blue;
-    }
-    
     /* Стили для контейнера с карточками */
     .container {
         background-color: rgb(240, 240, 240);
@@ -56,7 +5,7 @@
         flex-wrap: wrap;
         justify-content: space-around;
         padding: 20px;
-        margin-top: 17px; /* Добавляем отступ сверху, чтобы контейнер не перекрывал верхнюю полоску */
+        margin-top: 40px; /* Добавляем отступ сверху, чтобы контейнер не перекрывал верхнюю полоску */
         min-height: calc(100% - 107px); /* Subtract the header and footer heights */
     }
 
@@ -68,17 +17,27 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-top: 20px; /* Отступ сверху для полосы поиска */
-    }
-
-    #search-input {
+        margin-top: 20px;
+        margin-bottom: 20px; /* Increase margin-bottom for spacing between search and price inputs */
+      }
+      
+      #search-input{
         width: 300px;
         padding: 10px;
         font-size: 16px;
         border: 1px solid #ddd;
         border-radius: 5px;
         margin-right: 10px;
-    }
+      }
+      
+      #price-input{
+        width: 70px;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-right: 10px;
+      }
 
     #search-button {
         background-color: #a1836d;
@@ -195,3 +154,26 @@
 .close-button:hover {
     color: red; /* Цвет кнопки при наведении */
 }
+
+
+.breadcrumbs {
+    font-size: 16px;
+    color: #555; /* Text color for breadcrumbs */
+    margin-bottom: 20px; /* Add margin at the bottom */
+    margin-top: 20px;
+  }
+  
+  .breadcrumb-link {
+    color: #555; /* Link color for breadcrumbs */
+    text-decoration: none;
+    transition: color 0.3s; /* Add transition for link color */
+  }
+  
+  .breadcrumb-link:hover {
+    color: #8c6c57; /* Change link color on hover */
+  }
+  
+  .breadcrumb-separator {
+    margin: 0 10px; /* Add margin around the separator */
+    color: #555; /* Separator color */
+  }

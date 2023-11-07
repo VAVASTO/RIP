@@ -1,5 +1,4 @@
 import { FC, useState, useEffect } from 'react';
-import { Spinner } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Breadcrumbs from './Breadcrumbs';
 import './Bouquet.css';
@@ -20,27 +19,23 @@ const BouquetsPage: FC = () => {
   const priceParam = queryParams.get('price') || '';
 
   const [bouquets, setBouquets] = useState<Bouquet[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchValue, setSearchValue] = useState(searchParam);
   const [priceValue, setPriceValue] = useState(priceParam);
 
   const fetchBouquets = (searchText: string, price: string) => {
-    setLoading(true);
     // Fetch bouquet data using the relative path with query parameter
     fetch(`/bouquets/?q=${searchText}&price=${price}`)
       .then(response => response.json())
       .then(data => {
         setBouquets(data);
-        setLoading(false);
       })
       .catch(error => {
         console.error('Error fetching bouquets:', error);
-        setLoading(false);
       });
   };
 
   const breadcrumbsItems = [
-    { label: 'Все букеты' } // Link to the current page
+    { label: 'Все букеты', link:'' } // Link to the current page
   ];
 
   const handleSearchClick = () => {

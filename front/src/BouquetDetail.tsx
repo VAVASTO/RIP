@@ -12,25 +12,21 @@ const BouquetDetailPage: React.FC = () => {
     price: '',
     full_url: ''
   });
-  const [loading, setLoading] = useState(true);
 
   const breadcrumbsItems = [
     { label: 'Все букеты', link: '/bouquetss' },
-    { label: 'Подробнее' } 
+    { label: 'Подробнее', link: '' } 
   ];
 
 
   useEffect(() => {
     const fetchBouquetData = async () => {
       try {
-        setLoading(true);
         const response = await fetch(`/bouquets/${id}`); // Assuming your API endpoint is like 'bouquets/id'
         const data = await response.json();
         setBouquetData(data); // Update state with fetched data
-        setLoading(false);
       } catch (error) {
         console.error('Error fetching bouquet data:', error);
-        setLoading(false);
       }
     };
 

@@ -27,6 +27,7 @@ client = Minio(endpoint="localhost:9000",   # адрес сервера
 @api_view(["GET"])
 def get_bouquet_list(request, format=None):
     query = request.GET.get('q')
+    price = request.GET.get('price')
     print(query)  # Print the query to debug
     
     if query:
@@ -34,6 +35,9 @@ def get_bouquet_list(request, format=None):
     else:
         bouquet_type_list = BouquetType.objects.filter(status='in_stock').order_by("bouquet_id")
     
+    if price:
+        bouquet_type_list = bouquet_type_list.filter(price=price)
+
     serializer = BouquetSerializer(bouquet_type_list, many=True)
     return Response(serializer.data)
 
