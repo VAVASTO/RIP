@@ -2,6 +2,7 @@ import { FC, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Breadcrumbs from './Breadcrumbs';
 import './Bouquet.css';
+import logoImage from './logo.png'; 
 
 interface Bouquet {
   bouquet_id: number;
@@ -78,7 +79,11 @@ const BouquetsPage: FC = () => {
             {bouquets.map((bouquet) => (
             <div className="col" key={bouquet.bouquet_id}>
               <div className="card">
-                <img src={bouquet.full_url} alt={bouquet.name} className="card-img-top" />
+              <img
+                  src={(bouquet.full_url != '' && bouquet.full_url !== 'http://localhost:9000/images/images/None') ? bouquet.full_url : logoImage} // Use bouquet.full_url or default logoImage
+                  alt={bouquet.name}
+                  className="card-img-top"
+                />
                 <div className="card-body">
                   <h5 className="card-title">{bouquet.name}</h5>
                   <p className="card-text">{bouquet.description}</p>

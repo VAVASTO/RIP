@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Breadcrumbs from './Breadcrumbs';
 import './BouquetDetail.css';
+import logoImage from './logo.png'; 
 
 const BouquetDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>(); // Accessing the bouquet_id from the URL
@@ -45,7 +46,12 @@ const BouquetDetailPage: React.FC = () => {
           <Breadcrumbs items={breadcrumbsItems} /> {/* Include Breadcrumbs component */}
           <div className="col">
             <div className="card">
-              <img src={bouquetData.full_url} alt={bouquetData.name} className="card-img-top" />
+
+            <img
+                  src={(bouquetData.full_url != '' && bouquetData.full_url !== 'http://localhost:9000/images/images/None') ? bouquetData.full_url : logoImage} // Use bouquet.full_url or default logoImage
+                  alt={bouquetData.full_url}
+                  className="card-img-top"
+                />
               <div className="card-body">
                 <h5 className="card-title">{bouquetData.name}</h5>
                 <p className="card-text">{bouquetData.description}</p>
