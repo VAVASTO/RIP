@@ -1,11 +1,12 @@
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework import status as drf_status
 from pages.serializers import BouquetSerializer
 from pages.serializers import ApplicationSerializer
 from pages.serializers import BouquetApplication
-from pages.serializers import BouquetApplicationSerializer
 from pages.serializers import ServiceApplicationSerializer
+from drf_yasg.utils import swagger_auto_schema
 from pages.models import BouquetType
 from rest_framework.decorators import api_view
 from pages.models import Users
@@ -13,7 +14,16 @@ from pages.models import ServiceApplication
 from datetime import datetime
 from minio import Minio
 
+from django.http import JsonResponse
 from enum import Enum
+import hashlib
+import secrets
+
+from pages.redis_view import (
+    set_key,
+    get_value,
+    delete_value
+)
 
 class UsersENUM(Enum):
     MANAGER_ID = 1
@@ -24,6 +34,100 @@ client = Minio(endpoint="localhost:9000",   # адрес сервера
                secret_key='minio124',       # пароль админа
                secure=False)
 
+def check_user(request):
+    response = login_view_get(request._request)
+    if response.status_code == 200:
+        user = Users.objects.get(user_id=response.data.get('user_id').decode())
+        return user.role == 'USR'
+    return False
+
+def check_authorize(request):
+    response = login_view_get(request._request)
+    if response.status_code == 200:
+        user = Users.objects.get(user_id=response.data.get('user_id'))
+        return user
+    return None
+
+def check_moderator(request):
+    response = login_view_get(request._request)
+    if response.status_code == 200:
+        user = Users.objects.get(user_id=response.data.get('user_id'))
+        return user.role == 'MOD'
+    return False
+
+@api_view(['POST'])
+def registration(request, format=None):
+    required_fields = ['name', 'phone', 'email', 'position', 'status', 'login', 'password']
+    missing_fields = [field for field in required_fields if field not in request.data]
+
+    if missing_fields:
+        return Response({'Ошибка': f'Не хватает обязательных полей: {", ".join(missing_fields)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if Users.objects.filter(email=request.data['email']).exists() or Users.objects.filter(login=request.data['login']).exists():
+        return Response({'Ошибка': 'Пользователь с таким email или login уже существует'}, status=status.HTTP_400_BAD_REQUEST)
+
+    Users.objects.create(
+        name=request.data['name'],
+        phone=request.data['phone'],
+        email=request.data['email'],
+        position = request.data['position'],
+        status = request.data['status'],
+        login=request.data['login'],
+        password=request.data['password'],
+    )
+    return Response(status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def login_view(request, format=None):
+    existing_session = request.COOKIES.get('session_key')
+    if existing_session and get_value(existing_session):
+        return Response({'user_id': get_value(existing_session)})
+
+    login_ = request.data.get("login")
+    password = request.data.get("password")
+    
+    if not login_ or not password:
+        return Response({'error': 'Необходимы логин и пароль'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = Users.objects.get(login=login_)
+    except Users.DoesNotExist:
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+    if password == user.password:
+        random_part = secrets.token_hex(8)
+        session_hash = hashlib.sha256(f'{user.user_id}:{login_}:{random_part}'.encode()).hexdigest()
+        set_key(session_hash, user.user_id)
+
+        response = JsonResponse({'user_id': user.user_id})
+        response.set_cookie('session_key', session_hash, max_age=86400)
+        return response
+
+    return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+@api_view(['GET'])
+def logout_view(request):
+    session_key = request.COOKIES.get('session_key')
+
+    if session_key:
+        if not get_value(session_key):
+            return JsonResponse({'error': 'Вы не авторизованы'}, status=status.HTTP_401_UNAUTHORIZED)
+        delete_value(session_key)
+        response = JsonResponse({'message': 'Вы успешно вышли из системы'})
+        response.delete_cookie('session_key')
+        return response
+    else:
+        return JsonResponse({'error': 'Вы не авторизованы'}, status=status.HTTP_401_UNAUTHORIZED)
+
+@api_view(['GET'])
+def login_view_get(request, format=None):
+    existing_session = request.COOKIES.get('session_key')
+    if existing_session and get_value(existing_session):
+        return Response({'user_id': get_value(existing_session)})
+    return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+@swagger_auto_schema(method='get', operation_summary="Get Bouquet List", responses={200: BouquetSerializer(many=True)})
 @api_view(["GET"])
 def get_bouquet_list(request, format=None):
     query = request.GET.get('q')
@@ -41,6 +145,7 @@ def get_bouquet_list(request, format=None):
     serializer = BouquetSerializer(bouquet_type_list, many=True)
     return Response(serializer.data)
 
+@swagger_auto_schema(method='get', operation_summary="Get Bouquet Detail", responses={200: BouquetSerializer()})
 @api_view(["Get"])
 def get_bouquet_detail(application, pk, format=None):
     bouquet = get_object_or_404(BouquetType, pk=pk)
@@ -48,7 +153,7 @@ def get_bouquet_detail(application, pk, format=None):
         serializer = BouquetSerializer(bouquet)
         return Response(serializer.data)
     
-
+@swagger_auto_schema(method='post', operation_summary="Create Bouquet", request_body=BouquetSerializer, responses={201: BouquetSerializer()})
 @api_view(["Post"])
 def create_bouquet(application, format=None):
     serializer = BouquetSerializer(data=application.data)
@@ -57,6 +162,7 @@ def create_bouquet(application, format=None):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@swagger_auto_schema(method='POST', operation_summary="Add Bouquet to Application", request_body=BouquetSerializer, responses={200: 'OK', 404: 'Bouquet not found'})
 @api_view(["POST"])
 def add_bouquet(application, pk, quantity, format=None):
     bouquet_id = pk
@@ -94,6 +200,7 @@ def add_bouquet(application, pk, quantity, format=None):
 
         return Response({'message': 'New service application created with the bouquet'}, status=status.HTTP_201_CREATED)
 
+@swagger_auto_schema(method='PUT', operation_summary="Change Bouquet Properties", request_body=BouquetSerializer, responses={200: BouquetSerializer(), 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_bouquet_props(application, pk, format=None):
     bouquet = get_object_or_404(BouquetType, pk=pk)
@@ -103,6 +210,7 @@ def change_bouquet_props(application, pk, format=None):
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@swagger_auto_schema(method='DELETE', operation_summary="Delete Bouquet", responses={204: 'No Content'})
 @api_view(["Delete"])
 def delete_bouquet(application, pk, format=None):
     bouquet = get_object_or_404(BouquetType, pk=pk)
@@ -110,26 +218,51 @@ def delete_bouquet(application, pk, format=None):
     bouquet.save()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
+@swagger_auto_schema(method='GET', operation_summary="Get Applications List", responses={200: ApplicationSerializer(many=True)})
 @api_view(["Get"])
 def get_applications_list(application, format=None):
-
-    start_date = application.GET.get('start_date', None)
-    end_date = application.GET.get('end_date', None)
-    status = application.GET.get('status', None)
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     
-    applications_list = ServiceApplication.objects.all()
+    if user.position == "moderator":
 
-    if start_date:
-        applications_list = applications_list.filter(receiving_date__gte=start_date)
-        if end_date:
-            applications_list = applications_list.filter(receiving_date__lte=end_date)
-    if status:
-        applications_list = applications_list.filter(status=status)
+        start_date = application.GET.get('start_date', None)
+        end_date = application.GET.get('end_date', None)
+        status = application.GET.get('status', None)
+        
+        applications_list = ServiceApplication.objects.all()
 
-    applications_list = applications_list.order_by('-receiving_date')
-    serializer = ApplicationSerializer(applications_list, many=True)
-    return Response(serializer.data)
+        if start_date:
+            applications_list = applications_list.filter(receiving_date__gte=start_date)
+            if end_date:
+                applications_list = applications_list.filter(receiving_date__lte=end_date)
+        if status:
+            applications_list = applications_list.filter(status=status)
 
+        applications_list = applications_list.order_by('-receiving_date')
+        serializer = ApplicationSerializer(applications_list, many=True)
+        return Response(serializer.data)
+
+    else:
+        start_date = application.GET.get('start_date', None)
+        end_date = application.GET.get('end_date', None)
+        status = application.GET.get('status', None)
+        
+        applications_list = ServiceApplication.objects.filter(status="formed")
+
+        if start_date:
+            applications_list = applications_list.filter(receiving_date__gte=start_date)
+            if end_date:
+                applications_list = applications_list.filter(receiving_date__lte=end_date)
+        if status:
+            applications_list = applications_list.filter(status=status)
+
+        applications_list = applications_list.order_by('-receiving_date')
+        serializer = ApplicationSerializer(applications_list, many=True)
+        return Response(serializer.data)
+
+@swagger_auto_schema(method='GET', operation_summary="Get Application Detail", responses={200: ServiceApplicationSerializer()})
 @api_view(["Get"])
 def get_application_detail(application, pk, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=pk)
@@ -137,6 +270,7 @@ def get_application_detail(application, pk, format=None):
 
     return Response(serializer.data)
 
+@swagger_auto_schema(method='PUT', operation_summary="Change Bouquet Quantity", responses={200: ServiceApplicationSerializer(), 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_bouquet_quantity(application, application_id, bouquet_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
@@ -153,6 +287,7 @@ def change_bouquet_quantity(application, application_id, bouquet_id, format=None
     else:
         return Response({'error': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
     
+@swagger_auto_schema(method='DELETE', operation_summary="Delete Bouquet from Application", responses={200: ServiceApplicationSerializer()})
 @api_view(["DELETE"])
 def delete_bouquet_from_application(application, application_id, bouquet_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
@@ -164,6 +299,7 @@ def delete_bouquet_from_application(application, application_id, bouquet_id, for
     serializer = ServiceApplicationSerializer(service_application)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method='DELETE', operation_summary="Delete Service Application", responses={204: 'No Content'})
 @api_view(["DELETE"])
 def delete_service_application(application, application_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
@@ -182,6 +318,7 @@ def delete_service_application(application, application_id, format=None):
 
     return Response({'message': 'Service application deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
+@swagger_auto_schema(method='PUT', operation_summary="Change Status (Manager)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_status_manager(application, application_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
@@ -211,6 +348,7 @@ def change_status_manager(application, application_id, format=None):
 
     return Response({'error': 'Invalid status. Allowed values: draft, formed, deleted'}, status=status.HTTP_400_BAD_REQUEST)
 
+@swagger_auto_schema(method='PUT', operation_summary="Change Status (Packer)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_status_packer(application, application_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
@@ -231,6 +369,7 @@ def change_status_packer(application, application_id, format=None):
 
     return Response({'error': 'Invalid status. Allowed values: formed'}, status=status.HTTP_400_BAD_REQUEST)
 
+@swagger_auto_schema(method='PUT', operation_summary="Change Status (Courier)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_status_courier(application, application_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
@@ -259,6 +398,7 @@ def change_status_courier(application, application_id, format=None):
 
     return Response({'error': 'Invalid status. Allowed values: packed'}, status=status.HTTP_400_BAD_REQUEST)
 
+@swagger_auto_schema(method='PUT', operation_summary="Change Status (Moderator)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_status_moderator(application, application_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
@@ -276,6 +416,7 @@ def change_status_moderator(application, application_id, format=None):
     return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
 
 
+@swagger_auto_schema(method='PUT', operation_summary="Update Service Application", responses={200: 'OK', 201: 'Created'})
 @api_view(["PUT"])
 def update_service_application(application, format=None):
     current_user = Users.objects.get(user_id=1)

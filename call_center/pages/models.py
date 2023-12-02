@@ -166,13 +166,13 @@ class ServiceApplication(models.Model):
 
 class Users(models.Model):
     user_id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=30)
-    phone = models.CharField(max_length=20)
-    email = models.CharField(max_length=30, blank=True, null=True)
-    position = models.CharField(max_length=20)
-    status = models.CharField(max_length=20)
-    login = models.CharField(max_length=15)
-    password = models.CharField(max_length=20)
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=100)
+    email = models.CharField(max_length=100, blank=True, null=True)
+    position = models.CharField(max_length=100)
+    status = models.CharField(max_length=100)
+    login = models.CharField(max_length=100)
+    password = models.CharField(max_length=100)
 
     class Meta:
         managed = False
