@@ -80,9 +80,10 @@ def registration(request, format=None):
 
 @api_view(['POST'])
 def login_view(request, format=None):
+    print(request.COOKIES)
     existing_session = request.COOKIES.get('session_key')
     if existing_session and get_value(existing_session):
-        return Response({'user_id': get_value(existing_session)})
+        return Response({'user_id': get_value(existing_session), 'session_key': existing_session, 'username': Users.objects.get(id=get_value(existing_session)).name})
 
     login_ = request.data.get("login")
     password = request.data.get("password")
@@ -99,8 +100,7 @@ def login_view(request, format=None):
         random_part = secrets.token_hex(8)
         session_hash = hashlib.sha256(f'{user.user_id}:{login_}:{random_part}'.encode()).hexdigest()
         set_key(session_hash, user.user_id)
-
-        response = JsonResponse({'user_id': user.user_id})
+        response = JsonResponse({'user_id': user.user_id, 'session_key': session_hash, 'username': user.name})
         response.set_cookie('session_key', session_hash, max_age=86400)
         return response
 
@@ -108,6 +108,7 @@ def login_view(request, format=None):
 
 @api_view(['GET'])
 def logout_view(request):
+    print(request.headers)
     session_key = request.COOKIES.get('session_key')
 
     if session_key:

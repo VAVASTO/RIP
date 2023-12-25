@@ -107,3 +107,8 @@ class ServiceApplicationSerializer(serializers.ModelSerializer):
                   'completion_date', 
                   'status',
                   'bouquet_details']
+        
+
+
+
+

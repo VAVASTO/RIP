@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'pages.apps.PagesConfig',
     'django.contrib.admin',
     'django.contrib.auth',
+    'corsheaders',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -50,7 +51,21 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Замените этот URL на адрес вашего фронтенда
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+APPEND_SLASH = False
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Добавьте свой фронтенд домен
+]
+
 
 ROOT_URLCONF = 'call_center.urls'
 
