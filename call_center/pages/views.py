@@ -423,22 +423,19 @@ def change_status_manager(application, application_id, format=None):
 @api_view(["PUT"])
 def change_status_packer(application, application_id, format=None):
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
-
     current_status = service_application.status
     new_status = application.data.get('application_status')
 
     if not new_status:
         return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
     
-    if current_status == 'formed':       
-        if new_status != 'packed':
-            return Response({'error': 'Packer status required to change status from formed to packed or rejected'}, status=status.HTTP_403_FORBIDDEN)
-        service_application.status = new_status
+    if current_status != 'formed':       
+        return Response({'error': 'Packer status required to change status from formed to packed or rejected'}, status=status.HTTP_403_FORBIDDEN)
+    service_application.status = new_status
 
-        service_application.save()
-        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+    service_application.save()
+    return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
 
-    return Response({'error': 'Invalid status. Allowed values: formed'}, status=status.HTTP_400_BAD_REQUEST)
 
 @swagger_auto_schema(method='PUT', operation_summary="Change Status (Courier)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
