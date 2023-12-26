@@ -11,6 +11,8 @@ from pages.models import BouquetType
 from rest_framework.decorators import api_view
 from pages.models import Users
 from pages.models import ServiceApplication
+from minio.error import S3Error
+from django.utils import timezone
 from datetime import datetime
 from minio import Minio
 
@@ -33,6 +35,36 @@ client = Minio(endpoint="localhost:9000",   # адрес сервера
                access_key='minio',          # логин админа
                secret_key='minio124',       # пароль админа
                secure=False)
+
+@api_view(["POST"])
+def upload_photo(request, format=None):
+    # Check if the request contains the photo file
+    if 'photo' not in request.FILES:
+        return Response({'error': 'No photo file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    photo_file = request.FILES['photo']
+    print("got_photo")
+
+    # Generate a unique filename for the photo
+    filename = f"photo_new_{timezone.now().strftime('%Y%m%d%H%M%S')}.jpg"
+
+    try:
+        # Use Minio client to upload the file
+        client.put_object(
+            bucket_name='images',
+            object_name="images/" + filename,
+            data=photo_file,
+            length=photo_file.size,
+            content_type='image/jpeg',
+        )
+
+        # Construct the URL for the uploaded photo
+        photo_url = f"{filename}"
+
+        return Response({'photo_url': photo_url}, status=status.HTTP_201_CREATED)
+
+    except S3Error as e:
+        return Response({'error': f'Error uploading photo to Minio: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def check_user(request):
     response = login_view_get(request._request)
@@ -117,6 +149,20 @@ def logout_view(request):
         delete_value(session_key)
         response = JsonResponse({'message': 'Вы успешно вышли из системы'})
         response.delete_cookie('session_key')
+
+        draft_service_applications = ServiceApplication.objects.filter(status="draft")
+
+        # Получить связанные записи в bouquet_application для каждой service_application
+        for service_app in draft_service_applications:
+            bouquet_applications = BouquetApplication.objects.filter(application=service_app)
+            
+            # Удалить связанные записи в bouquet_application
+            bouquet_applications.delete()
+
+        # Удалить записи в service_application с status="draft"
+        draft_service_applications.delete()
+
+
         return response
     else:
         return JsonResponse({'error': 'Вы не авторизованы'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -131,9 +177,23 @@ def login_view_get(request, format=None):
 @swagger_auto_schema(method='get', operation_summary="Get Bouquet List", responses={200: BouquetSerializer(many=True)})
 @api_view(["GET"])
 def get_bouquet_list(request, format=None):
+    user = check_authorize(request)
+    if user and user.position == "moderator":
+        bouquet_type_list = BouquetType.objects.order_by("bouquet_id")
+        serializer = BouquetSerializer(bouquet_type_list, many=True)
+        draft_application = ServiceApplication.objects.filter(status='draft').first()
+
+        data_with_draft_id = {
+            'draft_application_id': draft_application.application_id if draft_application else None,
+            'bouquets': serializer.data
+        }
+
+        return Response(data_with_draft_id)
+
     query = request.GET.get('q')
     price = request.GET.get('price')
-    print(query)  # Print the query to debug
+
+    draft_application = ServiceApplication.objects.filter(status='draft').first()
     
     if query:
         bouquet_type_list = BouquetType.objects.filter(name__icontains=query, status='in_stock').order_by("bouquet_id")
@@ -144,7 +204,12 @@ def get_bouquet_list(request, format=None):
         bouquet_type_list = bouquet_type_list.filter(price=price)
 
     serializer = BouquetSerializer(bouquet_type_list, many=True)
-    return Response(serializer.data)
+    data_with_draft_id = {
+        'draft_application_id': draft_application.application_id if draft_application else None,
+        'bouquets': serializer.data
+    }
+
+    return Response(data_with_draft_id)
 
 @swagger_auto_schema(method='get', operation_summary="Get Bouquet Detail", responses={200: BouquetSerializer()})
 @api_view(["Get"])
@@ -157,6 +222,10 @@ def get_bouquet_detail(application, pk, format=None):
 @swagger_auto_schema(method='post', operation_summary="Create Bouquet", request_body=BouquetSerializer, responses={201: BouquetSerializer()})
 @api_view(["Post"])
 def create_bouquet(application, format=None):
+    application.data['status'] = "in_stock"
+    if 'image_url' not in application.data: 
+        application.data['image_url'] = "logo.png"
+    print(application.data)
     serializer = BouquetSerializer(data=application.data)
     if serializer.is_valid():
         serializer.save()
@@ -183,13 +252,14 @@ def add_bouquet(application, pk, quantity, format=None):
 
         return Response({'message': 'Bouquet added to the existing draft application'}, status=status.HTTP_200_OK)
     else:
+        print("new application")
         current_user = Users.objects.get(user_id=1)
         new_application = ServiceApplication.objects.create(
             manager=current_user,
             status='draft'
         )
 
-        bouquet_id = application.data.get('bouquet_id')
+        # bouquet_id = application.data.get('bouquet_id')
         print(f"bouquet_id = {bouquet_id}")
         if bouquet_id:
             try:

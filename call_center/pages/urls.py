@@ -12,6 +12,7 @@ urlpatterns = [
     path(r'bouquets/<int:pk>/delete/', views.delete_bouquet, name='delete_bouquet'),
     path(r'bouquets/<int:pk>/<int:quantity>/add/', views.add_bouquet, name='add_bouquet'),
 
+    path(r'upload_photo/', views.upload_photo, name='upload-photo'),
     path(r"applications/", views.get_applications_list, name='reqests_list'),
     path(r"applications/<int:pk>/", views.get_application_detail, name='get_application_detail'),
     path(r'applications/<int:application_id>/bouquets/<int:bouquet_id>/', views.change_bouquet_quantity, name='change_bouquet_quantity'),
