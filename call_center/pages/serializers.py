@@ -57,6 +57,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "completion_date",
             "status",
         ]
+        ordering = ['-application_id']
 
 from rest_framework import serializers
 from .models import BouquetType
@@ -79,13 +80,16 @@ class BouquetTypeSerializer(serializers.ModelSerializer):
             "full_url",
         ]
 
+from rest_framework import serializers
+
+# ... (your existing imports)
+
 class BouquetApplicationSerializer(serializers.ModelSerializer):
     bouquet = BouquetTypeSerializer()
 
     class Meta:
         model = BouquetApplication
-        fields = ['bouquet', 
-                  'quantity']
+        fields = ['bouquet', 'quantity']
 
 class ServiceApplicationSerializer(serializers.ModelSerializer):
     manager = UsersSerializer(read_only=True) 
@@ -95,20 +99,12 @@ class ServiceApplicationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ServiceApplication
-        fields = ['application_id', 
-                  'manager', 
-                  'packer', 
-                  'courier', 
-                  'client_name', 
-                  'client_phone',
-                  'client_address', 
-                  'receiving_date', 
-                  'delivery_date', 
-                  'completion_date', 
-                  'status',
+        fields = ['application_id', 'manager', 'packer', 'courier', 'client_name', 'client_phone',
+                  'client_address', 'receiving_date', 'delivery_date', 'completion_date', 'status',
                   'bouquet_details']
-        
 
-
-
-
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # Sort bouquet_details based on bouquet_id
+        representation['bouquet_details'] = sorted(representation['bouquet_details'], key=lambda x: x['bouquet']['bouquet_id'])
+        return representation

@@ -311,7 +311,7 @@ def get_applications_list(application, format=None):
         if status:
             applications_list = applications_list.filter(status=status)
 
-        applications_list = applications_list.order_by('-receiving_date')
+        applications_list = applications_list.order_by('-application_id')
         serializer = ApplicationSerializer(applications_list, many=True)
         return Response(serializer.data)
 
