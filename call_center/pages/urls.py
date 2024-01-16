@@ -20,7 +20,6 @@ urlpatterns = [
     path(r'applications/<int:application_id>/change_status_manager/', views.change_status_manager, name='change_service_application_status_manager'),
     path(r'applications/<int:application_id>/change_status_packer/', views.change_status_packer, name='change_service_application_status_packer'),
     path(r'applications/<int:application_id>/change_status_courier/', views.change_status_courier, name='change_service_application_status_courier'),
-    path(r'applications/<int:application_id>/change_status_moderator/', views.change_status_moderator, name='change_service_application_status_moderator'),
     path(r'applications/update_service_application/', views.update_service_application, name='new_service_application'),
 
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),

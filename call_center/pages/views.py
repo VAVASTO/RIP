@@ -248,39 +248,10 @@ def change_status_courier(application, application_id, format=None):
 
     return Response({'error': 'Invalid status. Allowed values: packed'}, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["PUT"])
-def change_status_moderator(application, application_id, format=None):
-    service_application = get_object_or_404(ServiceApplication, pk=application_id)
-
-    new_status = application.data.get('application_status')
-
-    if not new_status:
-        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
-       
-    if new_status != 'cancelled':
-        return Response({'error': 'Moderator status required to change status to cancelled'}, status=status.HTTP_403_FORBIDDEN)
-    service_application.status = new_status
-
-    service_application.save()
-    return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
-
 
 @api_view(["PUT"])
 def update_service_application(application, format=None):
     current_user = Users.objects.get(user_id=1)
-    '''
-    User status check
-
-    try:
-        current_user = Users.objects.get(user_id=current_user_id)
-    except Users.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    if current_user.position != 'manager':
-        return Response({'error': 'Manager status required to create a new service application'}, status=status.HTTP_403_FORBIDDEN)
-
-    Add manager check to filter
-    '''
     draft_application = ServiceApplication.objects.filter(status='draft').first()
 
     client_name = application.data.get('client_name')
