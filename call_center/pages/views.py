@@ -40,7 +40,7 @@ client = Minio(endpoint="localhost:9000",   # адрес сервера
 def upload_photo(request, format=None):
     # Check if the request contains the photo file
     if 'photo' not in request.FILES:
-        return Response({'error': 'No photo file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'Ошибка': 'Не добавлено фото'}, status=status.HTTP_400_BAD_REQUEST)
 
     photo_file = request.FILES['photo']
     print("got_photo")
@@ -64,7 +64,7 @@ def upload_photo(request, format=None):
         return Response({'photo_url': photo_url}, status=status.HTTP_201_CREATED)
 
     except S3Error as e:
-        return Response({'error': f'Error uploading photo to Minio: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'Ошибка': f'Ошибка загрузки {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def check_user(request):
     response = login_view_get(request._request)
@@ -224,6 +224,9 @@ def get_bouquet_detail(application, pk, format=None):
 @swagger_auto_schema(method='post', operation_summary="Create Bouquet", request_body=BouquetSerializer, responses={201: BouquetSerializer()})
 @api_view(["Post"])
 def create_bouquet(application, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     application.data['status'] = "in_stock"
     if 'image_url' not in application.data: 
         application.data['image_url'] = "logo.png"
@@ -237,6 +240,9 @@ def create_bouquet(application, format=None):
 @swagger_auto_schema(method='POST', operation_summary="Add Bouquet to Application", request_body=BouquetSerializer, responses={200: 'OK', 404: 'Bouquet not found'})
 @api_view(["POST"])
 def add_bouquet(application, pk, quantity, format=None):
+    current_user = check_authorize(application)
+    if not current_user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     bouquet_id = pk
     draft_application = ServiceApplication.objects.filter(status='draft').first()
     if draft_application:
@@ -248,14 +254,13 @@ def add_bouquet(application, pk, quantity, format=None):
             try:
                 bouquet = BouquetType.objects.get(bouquet_id=bouquet_id)
             except BouquetType.DoesNotExist:
-                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Букет не найден'}, status=status.HTTP_404_NOT_FOUND)
 
             BouquetApplication.objects.create(bouquet=bouquet, application=draft_application, quantity=quantity)
 
-        return Response({'message': 'Bouquet added to the existing draft application'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Букет добавлен'}, status=status.HTTP_200_OK)
     else:
         print("new application")
-        current_user = Users.objects.get(user_id=1)
         new_application = ServiceApplication.objects.create(
             manager=current_user,
             status='draft'
@@ -269,13 +274,16 @@ def add_bouquet(application, pk, quantity, format=None):
                 BouquetApplication.objects.create(bouquet=bouquet, application=new_application, quantity=quantity)
             except BouquetType.DoesNotExist:
                 new_application.delete()  
-                return Response({'error': 'Bouquet not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Букет не найден'}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({'message': 'New service application created with the bouquet'}, status=status.HTTP_201_CREATED)
+        return Response({'message': 'Букет добавлен'}, status=status.HTTP_201_CREATED)
 
 @swagger_auto_schema(method='PUT', operation_summary="Change Bouquet Properties", request_body=BouquetSerializer, responses={200: BouquetSerializer(), 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_bouquet_props(application, pk, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     bouquet = get_object_or_404(BouquetType, pk=pk)
     serializer = BouquetSerializer(bouquet, data=application.data, partial=True)
     if serializer.is_valid():
@@ -286,6 +294,9 @@ def change_bouquet_props(application, pk, format=None):
 @swagger_auto_schema(method='DELETE', operation_summary="Delete Bouquet", responses={204: 'No Content'})
 @api_view(["Delete"])
 def delete_bouquet(application, pk, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     bouquet = get_object_or_404(BouquetType, pk=pk)
     bouquet.status = "out_of_stock"
     bouquet.save()
@@ -353,6 +364,9 @@ def get_applications_list(request, format=None):
 @swagger_auto_schema(method='GET', operation_summary="Get Application Detail", responses={200: ServiceApplicationSerializer()})
 @api_view(["Get"])
 def get_application_detail(application, pk, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     service_application = get_object_or_404(ServiceApplication, pk=pk)
     serializer = ServiceApplicationSerializer(service_application)
 
@@ -361,6 +375,9 @@ def get_application_detail(application, pk, format=None):
 @swagger_auto_schema(method='PUT', operation_summary="Change Bouquet Quantity", responses={200: ServiceApplicationSerializer(), 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_bouquet_quantity(application, application_id, bouquet_id, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
     bouquet_application = get_object_or_404(BouquetApplication, application=service_application, bouquet_id=bouquet_id)
@@ -373,11 +390,14 @@ def change_bouquet_quantity(application, application_id, bouquet_id, format=None
         serializer = ServiceApplicationSerializer(service_application)
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:
-        return Response({'error': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Необходимо количесвто'}, status=status.HTTP_400_BAD_REQUEST)
     
 @swagger_auto_schema(method='DELETE', operation_summary="Delete Bouquet from Application", responses={200: ServiceApplicationSerializer()})
 @api_view(["DELETE"])
 def delete_bouquet_from_application(application, application_id, bouquet_id, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
     bouquet_application = get_object_or_404(BouquetApplication, application=service_application, bouquet_id=bouquet_id)
@@ -390,6 +410,9 @@ def delete_bouquet_from_application(application, application_id, bouquet_id, for
 @swagger_auto_schema(method='DELETE', operation_summary="Delete Service Application", responses={204: 'No Content'})
 @api_view(["DELETE"])
 def delete_service_application(application, application_id, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
     user_id = application.query_params.get('user_id')
@@ -397,130 +420,110 @@ def delete_service_application(application, application_id, format=None):
     try:
         user = Users.objects.get(user_id=user_id)
         if user.position != 'manager':
-            return Response({'error': 'User does not have manager status'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'UНет прав'}, status=status.HTTP_403_FORBIDDEN)
     except Users.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Пользователь не найден'}, status=status.HTTP_404_NOT_FOUND)
 
     service_application.status = 'deleted'
     service_application.save()
 
-    return Response({'message': 'Service application deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    return Response({'message': 'Успешно удалено'}, status=status.HTTP_204_NO_CONTENT)
 
 @swagger_auto_schema(method='PUT', operation_summary="Change Status (Manager)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_status_manager(application, application_id, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
     current_status = service_application.status
     new_status = application.data.get('application_status')
 
     if not new_status:
-        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'error': 'Статус не найден'}, status=status.HTTP_403_FORBIDDEN)
     
     if current_status == 'draft':
         if new_status != 'formed' and new_status != 'deleted':
-            return Response({'error': 'Manager status required to change status from draft to formed or deleted'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Нет прав'}, status=status.HTTP_403_FORBIDDEN)
         service_application.status = new_status
 
         service_application.receiving_date = datetime.now()
 
         service_application.save()
-        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Успешно изменено'}, status=status.HTTP_200_OK)
     
     if current_status == 'formed':       
         if new_status != 'draft' and new_status != 'deleted':
-            return Response({'error': 'Manager status required to change status from formed to draft or deleted'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Нет прав'}, status=status.HTTP_403_FORBIDDEN)
         service_application.status = new_status
 
         service_application.save()
-        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Успешно изменено'}, status=status.HTTP_200_OK)
 
-    return Response({'error': 'Invalid status. Allowed values: draft, formed, deleted'}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({'error': 'Неверный статус'}, status=status.HTTP_400_BAD_REQUEST)
 
 @swagger_auto_schema(method='PUT', operation_summary="Change Status (Packer)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_status_packer(application, application_id, format=None):
+    packer_user = check_authorize(application)
+    if not packer_user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
     current_status = service_application.status
     new_status = application.data.get('application_status')
 
     if not new_status:
-        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'error': 'Статус не найден'}, status=status.HTTP_403_FORBIDDEN)
     
     if current_status != 'formed':       
-        return Response({'error': 'Packer status required to change status from formed to packed or rejected'}, status=status.HTTP_403_FORBIDDEN)
-    packer_user = Users.objects.filter(position="moderator").first()
+        return Response({'error': 'Нет прав'}, status=status.HTTP_403_FORBIDDEN)
     service_application.packer = packer_user
     service_application.status = new_status
 
     service_application.save()
-    return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+    return Response({'message': 'Успешно изменён'}, status=status.HTTP_200_OK)
 
 
 @swagger_auto_schema(method='PUT', operation_summary="Change Status (Courier)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
 @api_view(["PUT"])
 def change_status_courier(application, application_id, format=None):
+    user = check_authorize(application)
+    if not user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     service_application = get_object_or_404(ServiceApplication, pk=application_id)
 
     current_status = service_application.status
     new_status = application.data.get('application_status')
 
     if not new_status:
-        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'error': 'Статус не найден'}, status=status.HTTP_403_FORBIDDEN)
     
     if current_status == 'packed':       
         if new_status != 'delivering':
-            return Response({'error': 'Courier status required to change status from packed to delivering or completed'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Нет прав'}, status=status.HTTP_403_FORBIDDEN)
         service_application.status = new_status
 
         service_application.save()
-        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Успешно изменено'}, status=status.HTTP_200_OK)
     
     if current_status == 'delivering':       
         if new_status != 'completed':
-            return Response({'error': 'Courier status required to change status from packed to delivering or completed'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Нет прав'}, status=status.HTTP_403_FORBIDDEN)
         service_application.status = new_status
 
         service_application.save()
-        return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Статус успешно изменён'}, status=status.HTTP_200_OK)
 
-    return Response({'error': 'Invalid status. Allowed values: packed'}, status=status.HTTP_400_BAD_REQUEST)
-
-@swagger_auto_schema(method='PUT', operation_summary="Change Status (Moderator)", responses={200: 'OK', 403: 'Forbidden', 400: 'Bad Request'})
-@api_view(["PUT"])
-def change_status_moderator(application, application_id, format=None):
-    service_application = get_object_or_404(ServiceApplication, pk=application_id)
-
-    new_status = application.data.get('application_status')
-
-    if not new_status:
-        return Response({'error': 'Status not found'}, status=status.HTTP_403_FORBIDDEN)
-       
-    if new_status != 'cancelled':
-        return Response({'error': 'Moderator status required to change status to cancelled'}, status=status.HTTP_403_FORBIDDEN)
-    service_application.status = new_status
-
-    service_application.save()
-    return Response({'message': 'Service application status changed successfully'}, status=status.HTTP_200_OK)
+    return Response({'error': 'Нет прав'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @swagger_auto_schema(method='PUT', operation_summary="Update Service Application", responses={200: 'OK', 201: 'Created'})
 @api_view(["PUT"])
 def update_service_application(application, format=None):
-    current_user = Users.objects.get(user_id=1)
-    '''
-    User status check
-
-    try:
-        current_user = Users.objects.get(user_id=current_user_id)
-    except Users.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    if current_user.position != 'manager':
-        return Response({'error': 'Manager status required to create a new service application'}, status=status.HTTP_403_FORBIDDEN)
-
-    Add manager check to filter
-    '''
+    current_user = check_authorize(application)
+    if not current_user:
+        return Response(status=drf_status.HTTP_403_FORBIDDEN)
     draft_application = ServiceApplication.objects.filter(status='draft').first()
 
     client_name = application.data.get('client_name')
@@ -539,7 +542,7 @@ def update_service_application(application, format=None):
             draft_application.delivery_date = delivery_date
 
         draft_application.save()
-        return Response({'message': 'Application updated successfully'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Успешно обновлено'}, status=status.HTTP_200_OK)
 
     new_application = ServiceApplication.objects.create(
         manager=current_user,
@@ -552,5 +555,5 @@ def update_service_application(application, format=None):
 
     BouquetApplication.objects.create(application=new_application)
 
-    return Response({'message': 'New service application created'}, status=status.HTTP_201_CREATED)
+    return Response({'message': 'Создана новая заявка'}, status=status.HTTP_201_CREATED)
     
