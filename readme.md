@@ -1,8 +1,7 @@
-Идея: Малый бизнесс по доставке цветов
-Колл-центр принемает звонки от клиентов и формирует задания для курьеров
-Услуги - услуги по доставке цветов.
-Заявки - заявки клинтов на доставку цветов
-Заказы формирует менеджер, берёт в работу курер и отдаёт клинету
+Коллцентр малого бизнесса по доставке цветов
 
-Статусы заяки: draft, deleted, formed, delivering, completed, rejected
-Статусы user: manager, packer, courier 
+Репозиторий frontend:
+https://github.com/VAVASTO/RIP_frontend/tree/base_front
+
+Репозиторий мобильного приложения:
+https://github.com/VAVASTO/RIP_mobile/tree/ios_app
