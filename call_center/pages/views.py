@@ -115,7 +115,9 @@ def login_view(request, format=None):
     print(request.COOKIES)
     existing_session = request.COOKIES.get('session_key')
     if existing_session and get_value(existing_session):
-        return Response({'user_id': get_value(existing_session), 'session_key': existing_session, 'username': Users.objects.get(id=get_value(existing_session)).name})
+        return Response({'user_id': get_value(existing_session), 'session_key': existing_session, 
+                         'username': Users.objects.get(id=get_value(existing_session)).name,
+                         'user_role': Users.objects.get(id=get_value(existing_session)).position})
 
     login_ = request.data.get("login")
     password = request.data.get("password")
@@ -132,7 +134,7 @@ def login_view(request, format=None):
         random_part = secrets.token_hex(8)
         session_hash = hashlib.sha256(f'{user.user_id}:{login_}:{random_part}'.encode()).hexdigest()
         set_key(session_hash, user.user_id)
-        response = JsonResponse({'user_id': user.user_id, 'session_key': session_hash, 'username': user.name})
+        response = JsonResponse({'user_id': user.user_id, 'session_key': session_hash, 'username': user.name, 'user_role':user.position})
         response.set_cookie('session_key', session_hash, max_age=86400)
         return response
 
@@ -289,24 +291,32 @@ def delete_bouquet(application, pk, format=None):
     bouquet.save()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
+from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta
+
 @swagger_auto_schema(method='GET', operation_summary="Get Applications List", responses={200: ApplicationSerializer(many=True)})
-@api_view(["Get"])
-def get_applications_list(application, format=None):
-    user = check_authorize(application)
+@api_view(["GET"])
+def get_applications_list(request, format=None):
+    user = check_authorize(request)
     if not user:
         return Response(status=drf_status.HTTP_403_FORBIDDEN)
     
     if user.position == "moderator":
+        start_date_str = request.GET.get('start_date', None)
+        end_date_str = request.GET.get('end_date', None)
+        status = request.GET.get('status', None)
 
-        start_date = application.GET.get('start_date', None)
-        end_date = application.GET.get('end_date', None)
-        status = application.GET.get('status', None)
-        
+        print(status)
+        print(start_date_str, end_date_str)
+
         applications_list = ServiceApplication.objects.all()
 
-        if start_date:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') - timedelta(hours=3)
             applications_list = applications_list.filter(receiving_date__gte=start_date)
-            if end_date:
+            if end_date_str:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d') - timedelta(hours=3)
                 applications_list = applications_list.filter(receiving_date__lte=end_date)
         if status:
             applications_list = applications_list.filter(status=status)
@@ -316,22 +326,29 @@ def get_applications_list(application, format=None):
         return Response(serializer.data)
 
     else:
-        start_date = application.GET.get('start_date', None)
-        end_date = application.GET.get('end_date', None)
-        status = application.GET.get('status', None)
+        start_date_str = request.GET.get('start_date', None)
+        end_date_str = request.GET.get('end_date', None)
+        status = request.GET.get('status', None)
         
-        applications_list = ServiceApplication.objects.filter(status="formed")
+        print(status)
+        print(start_date_str, end_date_str)
 
-        if start_date:
+        applications_list = ServiceApplication.objects.all()
+
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') - timedelta(hours=3)
             applications_list = applications_list.filter(receiving_date__gte=start_date)
-            if end_date:
+            if end_date_str:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d') - timedelta(hours=3)
                 applications_list = applications_list.filter(receiving_date__lte=end_date)
         if status:
             applications_list = applications_list.filter(status=status)
 
-        applications_list = applications_list.order_by('-receiving_date')
+        applications_list = applications_list.order_by('-application_id')
         serializer = ApplicationSerializer(applications_list, many=True)
         return Response(serializer.data)
+
+
 
 @swagger_auto_schema(method='GET', operation_summary="Get Application Detail", responses={200: ServiceApplicationSerializer()})
 @api_view(["Get"])
@@ -404,6 +421,7 @@ def change_status_manager(application, application_id, format=None):
         if new_status != 'formed' and new_status != 'deleted':
             return Response({'error': 'Manager status required to change status from draft to formed or deleted'}, status=status.HTTP_403_FORBIDDEN)
         service_application.status = new_status
+
         service_application.receiving_date = datetime.now()
 
         service_application.save()
@@ -431,6 +449,8 @@ def change_status_packer(application, application_id, format=None):
     
     if current_status != 'formed':       
         return Response({'error': 'Packer status required to change status from formed to packed or rejected'}, status=status.HTTP_403_FORBIDDEN)
+    packer_user = Users.objects.filter(position="moderator").first()
+    service_application.packer = packer_user
     service_application.status = new_status
 
     service_application.save()

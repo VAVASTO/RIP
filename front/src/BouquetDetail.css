@@ -1,6 +1,0 @@
-.card img {
-    width: 500px;
-    max-width: 100%;
-    height: auto;
-    flex-shrink: 0; /* Запрещаем картинке уменьшаться при недостатке места */
-}
