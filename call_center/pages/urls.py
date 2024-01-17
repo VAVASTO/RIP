@@ -18,8 +18,8 @@ urlpatterns = [
     path(r'api/applications/<int:application_id>/bouquets/<int:bouquet_id>/', views.change_bouquet_quantity, name='change_bouquet_quantity'),
     path(r'api/applications/<int:application_id>/bouquets_delete/<int:bouquet_id>/', views.delete_bouquet_from_application, name='delete_bouquet'),
     path(r'api/applications/<int:application_id>/delete/', views.delete_service_application, name='delete_service_application'),
-    path(r'api/applications/<int:application_id>/change_status_manager/', views.change_status_manager, name='change_service_application_status_manager'),
-    path(r'api/applications/<int:application_id>/change_status_packer/', views.change_status_packer, name='change_service_application_status_packer'),
+    path(r'api/applications/<int:application_id>/change_status_call_center/', views.change_status_manager, name='change_service_application_status_manager'),
+    path(r'api/applications/<int:application_id>/change_status_shop/', views.change_status_packer, name='change_service_application_status_packer'),
     path(r'api/applications/<int:application_id>/change_status_courier/', views.change_status_courier, name='change_service_application_status_courier'),
     path(r'api/applications/update_service_application/', views.update_service_application, name='new_service_application'),
 
